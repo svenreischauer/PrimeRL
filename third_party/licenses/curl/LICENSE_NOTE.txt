@@ -1,0 +1,17 @@
+curl License Note
+=================
+
+Binary used by runtime:
+- DeepPrime/tools/bin/curl.exe
+
+Detected version in this bundle:
+- curl 8.16.0 (libcurl/8.16.0)
+
+curl/libcurl are distributed under the curl license (MIT/X-derivative).
+
+Reference pages:
+- https://curl.se/docs/copyright.html
+- https://curl.se/docs/license.html
+
+Action for release packaging:
+- Add the exact upstream curl license text for the bundled curl build to this folder before public redistribution.

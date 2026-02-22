@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeepPrimeRL Third-Party Notices</title>
+  <style>
+    :root { --ink:#1a2433; --muted:#4e5d73; --line:#d7e0ea; --card:#fff; --bg:#eef3f8; --accent:#0f6fbf; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif; color:var(--ink); background:var(--bg); line-height:1.45; }
+    .wrap { width:min(1080px,94vw); margin:24px auto; }
+    .hero { background:linear-gradient(135deg,#0f6fbf 0%,#124c86 100%); color:#fff; border-radius:14px; padding:20px 22px; }
+    .card { margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+    h1,h2 { margin:0 0 8px; }
+    p { margin:0 0 10px; color:var(--muted); }
+    table { width:100%; border-collapse:collapse; font-size:.95rem; }
+    th,td { border:1px solid #dbe4ee; padding:8px; vertical-align:top; text-align:left; }
+    th { background:#f3f8fc; color:#123e6e; }
+    code { background:#f4f8fc; border:1px solid #d6e5f2; border-radius:5px; padding:1px 5px; }
+    ul { margin:0; padding-left:18px; }
+    a { color:#0f5ea5; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Third-Party Notices</h1>
+      <p>Overview of third-party components used by DeepPrimeRL runtime and where license/terms files are stored.</p>
+    </section>
+
+    <section class="card">
+      <h2>Components</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Runtime Artifact / Usage</th>
+            <th>License / Terms</th>
+            <th>Local Notice Path</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Primer3</td>
+            <td><code>primer3_core</code>, <code>ntthal</code>, <code>oligotm</code></td>
+            <td>GPL-2.0 (Primer3), plus GPL-3.0 for Amplicon3 component</td>
+            <td><code>third_party/licenses/primer3/LICENSE.GPL-2.0.txt</code><br><code>third_party/licenses/primer3/LICENSE_GPL3_for_Amplicon3.txt</code></td>
+          </tr>
+          <tr>
+            <td>curl / libcurl</td>
+            <td><code>DeepPrime/tools/bin/curl.exe</code></td>
+            <td>curl license (MIT/X-derivative)</td>
+            <td><code>third_party/licenses/curl/LICENSE_NOTE.txt</code></td>
+          </tr>
+          <tr>
+            <td>OpenPyXL</td>
+            <td>Python Excel export dependency</td>
+            <td>MIT License</td>
+            <td><code>third_party/licenses/openpyxl/LICENSE.MIT.txt</code></td>
+          </tr>
+          <tr>
+            <td>MFEprimer</td>
+            <td><code>DeepPrime/tools/bin/mfeprimer.exe</code></td>
+            <td>Upstream terms: free for academic/nonprofit/personal use; commercial licensing by permission</td>
+            <td><code>third_party/licenses/mfeprimer/TERMS_NOTE.txt</code></td>
+          </tr>
+          <tr>
+            <td>Splign / Spidey (NCBI)</td>
+            <td><code>Splign.exe</code>, <code>Spidey.exe</code>, <code>Spidey_AVX2_FMA3.exe</code></td>
+            <td>NCBI U.S. Government Work / public-domain notice</td>
+            <td><code>third_party/licenses/spidey/NCBI_NOTICE.txt</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Source References</h2>
+      <ul>
+        <li>Primer3 source and licenses in this repo: <code>third_party/primer3_src</code></li>
+        <li>curl references: <a href="https://curl.se/docs/copyright.html">copyright</a>, <a href="https://curl.se/docs/license.html">license</a></li>
+        <li>OpenPyXL: <a href="https://pypi.org/project/openpyxl/">https://pypi.org/project/openpyxl/</a></li>
+        <li>MFEprimer: <a href="https://www.mfeprimer.com/mfeprimer-3.0/">project page</a>, <a href="https://github.com/quwubin/MFEprimer-3.0">source</a></li>
+        <li>MFEprimer explicit terms statement: <a href="https://github.com/quwubin/MFEprimer-2.0">https://github.com/quwubin/MFEprimer-2.0</a></li>
+        <li>NCBI policies: <a href="https://www.ncbi.nlm.nih.gov/home/about/policies/#disclaimer">disclaimer</a></li>
+        <li>NCBI public-domain notice text: <a href="https://ncbi.github.io/cxx-toolkit/pages/ch_public">https://ncbi.github.io/cxx-toolkit/pages/ch_public</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

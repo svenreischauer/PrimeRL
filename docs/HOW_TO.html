@@ -1,0 +1,768 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrimeRL 1.1 How-To</title>
+  <style>
+    :root {
+      --ink: #17212f;
+      --muted: #4f5f74;
+      --line: #d8e1eb;
+      --bg: #eef3f8;
+      --card: #ffffff;
+      --accent: #0f6fbf;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 400px at -10% -20%, #d8ebff 0%, transparent 60%),
+        radial-gradient(1200px 400px at 110% -20%, #ffe7cb 0%, transparent 60%),
+        var(--bg);
+      line-height: 1.45;
+    }
+    .wrap {
+      width: min(1080px, 92vw);
+      margin: 28px auto 34px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f6fbf 0%, #124c86 100%);
+      color: #fff;
+      border-radius: 18px;
+      padding: 24px 26px;
+      box-shadow: 0 8px 24px rgba(15, 57, 100, 0.22);
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2rem);
+      letter-spacing: 0.2px;
+    }
+    .hero p {
+      margin: 10px 0 0;
+      color: #e7f3ff;
+      max-width: 80ch;
+    }
+    .accordion {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .fold {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(16, 32, 56, 0.05);
+      overflow: hidden;
+    }
+    .fold > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 600;
+      color: #0f3e6d;
+      user-select: none;
+    }
+    .fold > summary::-webkit-details-marker {
+      display: none;
+    }
+    .fold > summary::after {
+      content: "+";
+      float: right;
+      font-weight: 700;
+      color: #486485;
+    }
+    .fold[open] > summary::after {
+      content: "-";
+    }
+    .fold-body {
+      padding: 0 16px 14px;
+      border-top: 1px solid #e6eef6;
+    }
+    p { margin: 10px 0; }
+    ul, ol { margin: 10px 0; padding-left: 18px; }
+    li + li { margin-top: 6px; }
+    .kbd {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f4f8fc;
+      border: 1px solid #d6e5f2;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 0.9em;
+    }
+    .hint { color: var(--muted); font-size: 0.93rem; }
+    .cmp-wrap { overflow-x: auto; }
+    .cmp-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      min-width: 760px;
+    }
+    .cmp-table th,
+    .cmp-table td {
+      border: 1px solid #d6e2ee;
+      padding: 8px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    .cmp-table th {
+      background: #f4f8fc;
+      color: #1f3f66;
+    }
+    .footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>PrimeRL 1.1 How-To</h1>
+      <p>
+        For qRT-PCR primer design, always balance sensitivity, specificity, and robustness: primers should bind efficiently to the target transcript,
+        avoid secondary structures and primer-dimers, and minimize amplification of related transcripts. PrimeRL is designed to support this balance
+        through a state-of-the-art computational pipeline and carefully chosen default settings.
+      </p>
+    </section>
+
+    <section class="accordion">
+      <details class="fold">
+        <summary>One-Time Prerequisites</summary>
+        <div class="fold-body">
+          <p>
+            For full PrimeRL functionality, including target validation and transcriptome-wide off-target avoidance, a species-specific transcriptome
+            database must be downloaded and indexed locally. The indexing process may take up to 15 minutes, depending on available system RAM and
+            overall hardware performance. If no transcriptome database is detected, PrimeRL automatically initiates the download and indexing procedure.
+            Alternatively, databases can be downloaded and indexed manually through the Preferences menu. This setup is required only once per species
+            and enables fast, reproducible specificity testing within the local environment.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Choose Target Gene</summary>
+        <div class="fold-body">
+          <p>
+            The "Choose Target Gene" button initiates the retrieval of all relevant sequence information required for primer design directly from the Ensembl database.
+            Once a gene is selected, PrimeRL automatically downloads the corresponding transcript sequences, coding sequence (CDS) annotations,
+            exon-intron structure, and additional transcript metadata. These sequences form the foundation for all subsequent primer design steps,
+            including exon-boundary spanning, CDS restriction, and specificity filtering.
+          </p>
+          <p>
+            In many cases, a gene in Ensembl is associated with multiple transcript variants. To ensure a consistent and biologically meaningful starting point,
+            PrimeRL automatically preselects one transcript using a structured ranking strategy.
+          </p>
+          <p>The selection follows a prioritized hierarchy:</p>
+          <ol>
+            <li>Canonical transcript first - Transcripts annotated as canonical by Ensembl are preferred, as these typically represent the most widely accepted or functionally representative isoform.</li>
+            <li>Protein-coding status - Protein-coding transcripts are prioritized over non-coding variants to ensure compatibility with typical qRT-PCR applications.</li>
+            <li>Transcript Support Level (TSL) - Transcripts with stronger experimental evidence are favored.</li>
+            <li>APPRIS annotation - Isoforms supported by structural, functional, and evolutionary conservation data receive higher priority.</li>
+            <li>Longer CDS length - Among otherwise similar transcripts, those with longer coding sequences are preferred.</li>
+            <li>Longer overall transcript length - Used as a final tie-breaker.</li>
+          </ol>
+          <p>
+            This multi-criteria ranking strategy is intentionally more robust than a simple "longest transcript" approach. The longest isoform is not necessarily
+            the best supported or biologically most relevant variant. By incorporating annotation quality and evidence level into the decision process,
+            PrimeRL increases the likelihood that primers are designed against a well-supported and functionally meaningful transcript.
+          </p>
+          <p>
+            The automatically selected transcript serves as a default recommendation. At any time, you may manually override this choice using the transcript
+            selection dialog, allowing full control over the target isoform.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Find Primers! - Internal Design and Filtering Pipeline</summary>
+        <div class="fold-body">
+          <p>
+            When you click "Find Primers!", PrimeRL launches a structured, multi-stage pipeline based on the provided sequences that first generates a
+            large pool of potential primer pairs and then systematically reduces this pool to a small set of high-quality candidates. The overall logic
+            follows a generate broadly -> filter progressively -> rank intelligently principle. This ensures that no promising candidates are missed early
+            while still enforcing stringent quality criteria at later stages.
+          </p>
+          <p>Below is a step-by-step overview of the internal workflow:</p>
+          <ol>
+            <li>
+              <b>Sequence Initialization</b>
+              <p>
+                PrimeRL reads the currently selected mRNA and genomic sequences directly from the GUI. These sequences originate from Ensembl
+                (via Choose Target Gene) and include exon-intron annotations.
+              </p>
+              <p>This dual-sequence setup enables later filters such as exon-boundary spanning and genomic specificity checks.</p>
+            </li>
+            <li>
+              <b>Primer Generation via Primer3</b>
+              <p>
+                PrimeRL calls Primer3 to generate a large pool of candidate primer pairs, typically up to ~12,000 pairs depending on user settings.
+              </p>
+              <p>At this stage, Primer3 focuses mainly on classical primer design parameters such as:</p>
+              <ul>
+                <li>Melting temperature (Tm)</li>
+                <li>GC content</li>
+                <li>Length constraints</li>
+                <li>Amplicon size range</li>
+                <li>Basic self-complementarity checks</li>
+              </ul>
+              <p>
+                The goal here is sensitivity rather than selectivity: generate many technically plausible pairs before applying stricter downstream criteria.
+              </p>
+            </li>
+            <li>
+              <b>Rule-Based qPCR Structural Filters</b>
+              <p>The initial pool is then refined using qPCR-specific structural rules that go beyond standard Primer3 checks:</p>
+              <ul>
+                <li>Repeat and homopolymer filters (e.g., long nucleotide runs)</li>
+                <li>Intron-exon spanning constraints (if required)</li>
+                <li>Overlap requirements (e.g., forced exon junction overlap)</li>
+                <li>Optional exon window restrictions (limiting primer placement to defined transcript regions)</li>
+              </ul>
+              <p>
+                These filters ensure biological appropriateness for qRT-PCR applications and remove candidates that are technically valid but biologically suboptimal.
+              </p>
+            </li>
+            <li>
+              <b>Thermodynamic Evaluation (dG Calculation by ntthal)</b>
+              <p>
+                PrimeRL calculates detailed thermodynamic stability metrics (dG values) for primer-primer and primer-template interactions.
+              </p>
+              <p>
+                Pairs that exceed predefined stability thresholds (e.g., overly stable secondary structures or primer interactions) are discarded (cutoff).
+              </p>
+              <p>
+                This step increases robustness beyond basic Tm-based filtering by incorporating energetic feasibility into the selection process.
+              </p>
+            </li>
+            <li>
+              <b>Advanced Dimer and Specificity Filtering</b>
+              <p>At this stage, PrimeRL applies more computationally intensive but highly informative filters:</p>
+              <ul>
+                <li>Second primer dimer algorithm and filtering (independent validation step)</li>
+                <li>Optional SNP filter (if enabled), removing primer pairs overlapping known polymorphisms (not currently available for human genes).</li>
+                <li>
+                  Optional MFEprimer transcriptome specificity filter (compute-heavy)
+                  <ul>
+                    <li>Downloading and indexing of the transcriptome database are mandatory</li>
+                    <li>Applied only to a top-ranked subset to control runtime</li>
+                    <li>Evaluates potential off-target amplification across the reference transcriptome</li>
+                  </ul>
+                </li>
+              </ul>
+              <p>
+                The specificity filter is intentionally placed late in the pipeline. By applying it only to a reduced and pre-ranked subset, PrimeRL minimizes
+                computational load while maintaining high specificity assurance.
+              </p>
+            </li>
+            <li>
+              <b>Final Ranking and Output Preparation</b>
+              <p>After all filters are applied:</p>
+              <ul>
+                <li>Remaining primer pairs are sorted according to internal scoring metrics (e.g., thermodynamic balance, structural robustness, design penalties).</li>
+                <li>The list is truncated to the user-defined maximum number of output pairs (Max Pairs setting).</li>
+                <li>The results table and graphical plots are updated.</li>
+                <li>
+                  Filter statistics and runtime summaries are displayed, including:
+                  <ul>
+                    <li>Filter Pie Chart (shows which filters removed how many candidates)</li>
+                    <li>Runtime Pie Chart (shows computational cost per stage)</li>
+                  </ul>
+                </li>
+              </ul>
+              <p>
+                These visual summaries provide transparency, allowing users to understand both selection stringency and performance characteristics.
+              </p>
+            </li>
+          </ol>
+          <p><b>Design Philosophy</b></p>
+          <ul>
+            <li>Broad generation at the beginning</li>
+            <li>Increasing biological and thermodynamic stringency</li>
+            <li>Computationally expensive filters applied only after strong preselection</li>
+            <li>Transparent reporting of filter impact and runtime</li>
+          </ul>
+          <p>
+            This design ensures a balanced trade-off between sensitivity (not missing good primers), specificity (avoiding off-targets), and computational efficiency.
+            The result is a compact set of primer pairs that are not only technically valid but biologically appropriate, thermodynamically robust, and highly specific.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Primer Settings Box</summary>
+        <div class="fold-body">
+          <p>
+            The Primer Settings box defines the core design constraints that control how Primer3 generates candidate primer pairs. These parameters
+            determine the thermodynamic balance, amplification efficiency, and structural placement of the primers within the transcript.
+          </p>
+          <p>Each setting directly influences both assay robustness and downstream filtering behavior.</p>
+
+          <p><b>Tm (Melting Temperature)</b></p>
+          <p>This parameter defines:</p>
+          <ul>
+            <li>The allowed melting temperature range for individual primers (default: 58-62 degC)</li>
+            <li>The maximum allowed Tm difference between forward and reverse primers</li>
+          </ul>
+          <p>
+            The melting temperature (Tm) reflects the stability of primer binding to the template. In qPCR applications, primers with similar Tm values
+            ensure synchronous annealing during each cycle.
+          </p>
+          <p>The default 58-62 degC window provides:</p>
+          <ul>
+            <li>Strong and specific hybridization</li>
+            <li>Compatibility with standard two-step or three-step qPCR protocols</li>
+            <li>Reduced risk of non-specific binding at lower temperatures</li>
+          </ul>
+          <p>
+            The maximum forward/reverse Tm difference prevents asymmetric amplification efficiency. Large Tm differences can cause one primer to bind
+            more efficiently than the other, potentially reducing assay performance.
+          </p>
+
+          <p><b>Length</b></p>
+          <p>This defines the allowed primer length range (default: 20-24 nucleotides)</p>
+          <p>Primer length affects:</p>
+          <ul>
+            <li>Binding specificity</li>
+            <li>Melting temperature</li>
+            <li>Secondary structure formation</li>
+          </ul>
+          <p>
+            Primers shorter than ~18 bases may bind non-specifically, while primers longer than ~25 bases may:
+          </p>
+          <ul>
+            <li>Increase the risk of secondary structures</li>
+            <li>Show reduced amplification efficiency</li>
+            <li>Become unnecessarily restrictive in design space</li>
+          </ul>
+          <p>
+            The 20-24-base range represents a practical balance between specificity and design flexibility for most qPCR applications.
+          </p>
+
+          <p><b>Amplicon Size</b></p>
+          <p>This defines the allowed PCR product size range passed to Primer3 (default: 100-300 bp)</p>
+          <p>Amplicon length influences:</p>
+          <ul>
+            <li>Amplification efficiency</li>
+            <li>qPCR kinetics</li>
+            <li>Compatibility with degraded RNA samples</li>
+          </ul>
+          <p>
+            For qRT-PCR, shorter amplicons (typically 80-200 bp) are often preferred for optimal efficiency and robustness. The default range of
+            100-300 bp allows flexibility while maintaining strong performance in standard assays.
+          </p>
+          <p>Users working with fragmented RNA or fast cycling protocols may choose narrower ranges toward the lower end.</p>
+
+          <p><b>Limit Primers to Exon(s)</b></p>
+          <p>
+            This optional setting allows restriction of primer placement to a user-defined exon interval.
+          </p>
+          <p>
+            When enabled, Primer3 is instructed to generate primers only within the specified exon region(s). This can be useful when:
+          </p>
+          <ul>
+            <li>Targeting specific splice variants</li>
+            <li>Avoiding alternatively spliced exons</li>
+            <li>Designing assays downstream of known truncations</li>
+            <li>Restricting amplification to functionally relevant transcript regions</li>
+          </ul>
+          <p>
+            This feature provides precise spatial control over primer placement and integrates seamlessly with exon-intron spanning requirements
+            defined elsewhere in the pipeline.
+          </p>
+
+          <p><b>Design Logic</b></p>
+          <p>The Primer Settings box defines the design space for candidate generation.</p>
+          <p>
+            Broader ranges increase the number of possible primer pairs but may require stronger downstream filtering. Narrower ranges enforce stricter
+            constraints early but may reduce the number of viable candidates.
+          </p>
+          <p>
+            PrimeRL uses these settings as the first structural boundary of the pipeline. All subsequent thermodynamic, dimer, SNP, and specificity
+            filters operate only on candidates that satisfy these foundational parameters.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Filter Options: Primer Rules</summary>
+        <div class="fold-body">
+          <p>
+            The Primer Rules section defines additional sequence-level constraints that refine candidate primers beyond the basic Primer3 parameters.
+            These rules improve specificity, robustness, and transcript selectivity, particularly for qRT-PCR applications.
+          </p>
+
+          <p><b>GC Content (40-60%)</b></p>
+          <p>This filter removes primers whose GC content falls outside the specified range (default: 40-60%).</p>
+          <p>GC content influences:</p>
+          <ul>
+            <li>Melting temperature stability</li>
+            <li>Binding strength</li>
+            <li>Risk of secondary structures</li>
+          </ul>
+          <p>
+            Primers with very low GC content may bind weakly and produce unstable amplification, while excessively GC-rich primers may form strong
+            secondary structures or bind non-specifically.
+          </p>
+          <p>
+            The 40-60% interval represents a balanced range that supports stable annealing while minimizing structural complications.
+          </p>
+
+          <p><b>GC Clamp</b></p>
+          <p>
+            The GC clamp option favors primers that end with one or more G or C bases at the 3' terminus.
+          </p>
+          <p>The 3' end is critical because DNA polymerase extension begins there. A stable 3' binding region improves:</p>
+          <ul>
+            <li>Extension efficiency</li>
+            <li>Amplification reliability</li>
+            <li>Specificity at the elongation start site</li>
+          </ul>
+          <p>
+            However, excessively strong GC stretches at the 3' end are avoided to prevent non-specific binding or primer-dimer formation. The clamp is
+            therefore a stability preference, not an unrestricted GC enrichment.
+          </p>
+
+          <p><b>Exclude Repeats / Runs</b></p>
+          <p>This filter removes primers containing:</p>
+          <ul>
+            <li>Long homopolymer runs (e.g., AAAAA)</li>
+            <li>Dinucleotide or low-complexity repeats</li>
+          </ul>
+          <p>Low-complexity sequences can:</p>
+          <ul>
+            <li>Promote mispriming</li>
+            <li>Increase slippage during amplification</li>
+            <li>Raise the likelihood of primer-dimer formation</li>
+          </ul>
+          <p>
+            By applying run and repeat thresholds, PrimeRL excludes structurally unstable or non-specific primer candidates early in the pipeline.
+          </p>
+
+          <p><b>Span Intron/Exon Boundary</b></p>
+          <p>This option enforces primer placement across exon-exon junctions.</p>
+          <p>Primers spanning exon boundaries are especially useful in qRT-PCR because they:</p>
+          <ul>
+            <li>Preferentially amplify cDNA</li>
+            <li>Reduce amplification of contaminating genomic DNA</li>
+            <li>Increase transcript specificity</li>
+          </ul>
+          <p>
+            This rule leverages the exon-intron annotation retrieved from Ensembl and ensures biologically meaningful assay design for expression analysis.
+          </p>
+
+          <p><b>Overlap by X Bases</b></p>
+          <p>
+            When exon spanning is enabled, this parameter defines how many bases must overlap the exon-exon junction.
+          </p>
+          <p>For example:</p>
+          <ul>
+            <li>
+              An overlap of 4 bases means that 4 nucleotides lie on one exon and the remaining primer sequence on the adjacent exon.
+            </li>
+          </ul>
+          <p>A larger overlap increases:</p>
+          <ul>
+            <li>Junction specificity</li>
+            <li>Resistance to genomic DNA amplification</li>
+          </ul>
+          <p>
+            However, overly strict overlap requirements may reduce the number of viable primer candidates. This parameter therefore allows the user
+            to balance specificity and design flexibility.
+          </p>
+
+          <p><b>Design Logic</b></p>
+          <p>The Primer Rules operate as sequence-level quality filters that enhance:</p>
+          <ul>
+            <li>Structural robustness</li>
+            <li>Transcript specificity</li>
+            <li>Amplification reliability</li>
+          </ul>
+          <p>
+            They work in combination with thermodynamic and specificity filters applied later in the pipeline. By enforcing biologically informed
+            constraints early, PrimeRL reduces the computational burden of downstream high-cost specificity analyses while increasing the overall
+            quality of the final primer set.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Filter Options: Specificity Options</summary>
+        <div class="fold-body">
+          <p><b>Off-Target Exclusion</b></p>
+          <p>
+            When enabled, PrimeRL performs a transcriptome-wide specificity analysis using MFEprimer against the selected reference mRNA database
+            (e.g., RefSeq or Ensembl transcripts).
+          </p>
+          <p>The goal of this stage is to determine whether a primer pair is capable of:</p>
+          <ul>
+            <li>Binding to unintended transcripts</li>
+            <li>Forming a stable off-target amplicon</li>
+            <li>Producing a PCR product within a biologically plausible size range</li>
+          </ul>
+          <p>Primer pairs predicted to generate stable off-target amplicons are removed from the candidate list.</p>
+          <p>
+            This step significantly increases assay reliability in gene families, paralog-rich genomes, or highly conserved sequence regions.
+          </p>
+
+          <p><b>Sensitivity Preset</b></p>
+          <p>
+            The sensitivity preset determines how stringently MFEprimer evaluates partial matches during off-target detection.
+          </p>
+          <p>Two presets are available:</p>
+
+          <p><b>Standard (Default)</b><br><span class="kbd">-k 9 --misMatch 1</span></p>
+          <ul>
+            <li>Uses a 9-mer seed</li>
+            <li>Allows up to 1 mismatch within the seed region</li>
+          </ul>
+          <p>
+            This configuration provides a balanced trade-off between runtime and specificity. It efficiently detects clear off-target risks while
+            maintaining moderate computational cost.
+          </p>
+
+          <p><b>Strict</b><br><span class="kbd">-k 8 --misMatch 1</span></p>
+          <ul>
+            <li>Uses a shorter 8-mer seed</li>
+            <li>Allows up to 1 mismatch</li>
+          </ul>
+          <p>Because shorter seeds are more permissive in detecting partial matches, this setting increases sensitivity toward:</p>
+          <ul>
+            <li>Closely related paralogs</li>
+            <li>Conserved gene family members</li>
+            <li>Highly homologous transcript variants</li>
+          </ul>
+          <p>
+            The Strict mode is recommended when working with gene families or when maximal discrimination between similar transcripts is required.
+            However, it may increase runtime and eliminate more borderline candidates.
+          </p>
+
+          <p><b>Avoid SNPs</b></p>
+          <p>When enabled, PrimeRL performs SNP-aware filtering.</p>
+          <p>This feature:</p>
+          <ul>
+            <li>Scans primer binding regions for known polymorphisms</li>
+            <li>Applies a stricter policy within a configurable 3' window</li>
+            <li>Applies a more permissive policy outside the critical 3' region</li>
+          </ul>
+          <p>
+            The rationale is that mismatches near the 3' end have a disproportionate impact on amplification efficiency and allele bias.
+            By excluding primers overlapping SNPs, especially near the 3' terminus, PrimeRL improves:
+          </p>
+          <ul>
+            <li>Reproducibility</li>
+            <li>Cross-sample robustness</li>
+            <li>Quantitative accuracy</li>
+          </ul>
+          <p>This is particularly important for human or genetically diverse populations.</p>
+
+          <p><b>MFEprimer Amplicon Test Window (60-600 bp)</b></p>
+          <p>
+            During specificity testing, MFEprimer evaluates whether forward and reverse primers can form a plausible off-target amplicon within a
+            defined size window.
+          </p>
+          <p>PrimeRL uses a dedicated amplicon detection range of: <span class="kbd">60-600 bp</span></p>
+          <p>This range is intentionally broader than typical qPCR amplicon settings to ensure:</p>
+          <ul>
+            <li>Sensitive detection of unintended amplification events</li>
+            <li>Identification of biologically plausible off-target products</li>
+          </ul>
+          <p>
+            Even if your intended amplicon is, for example, 120 bp, an unintended 250 bp or 500 bp off-target product could still be amplified
+            under certain conditions. By expanding the detection window, PrimeRL increases the reliability of specificity assessment.
+          </p>
+
+          <p><b>Design Philosophy</b></p>
+          <p>The Filter Options module focuses on biological realism:</p>
+          <ul>
+            <li>Detect plausible off-target amplification events</li>
+            <li>Increase discrimination between paralogs</li>
+            <li>Protect against SNP-induced assay variability</li>
+            <li>Maintain computational efficiency via preset sensitivity levels</li>
+          </ul>
+          <p>
+            Together, these settings allow users to tune specificity stringency according to experimental needs, ranging from routine qPCR to
+            highly discriminative transcript-level assays.
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>MFEprimer Off-Target Exclusion vs Primer-BLAST: Overview</summary>
+        <div class="fold-body">
+          <p><b>MFEprimer Specificity Check (Off-target exclusion)</b></p>
+          <p>
+            PrimeRL, by default, uses MFEprimer to evaluate primer-pair specificity against a reference transcriptome. The goal of this step
+            is to identify primer pairs that could amplify off-target transcripts in addition to the intended target.
+          </p>
+          <p>
+            Conceptually, MFEprimer searches the transcriptome for binding sites of both primers and looks for situations where a forward and
+            reverse primer bind in a compatible orientation and distance, i.e., where they could form a plausible PCR amplicon. Candidate off-target
+            amplicons are then evaluated with thermodynamic scoring, emphasizing correct 3' end matching and overall binding stability. Primer pairs
+            that produce strong, PCR-feasible off-target hits are flagged and removed.
+          </p>
+          <p>
+            In almost all cases, the specificity test (Off-target exclusion) under default (standard) settings will exclude any primer pairs that are
+            able to amplify from off-target cDNAs. Even more so when the strict preset is selected. While this often removes the need to run Primer-BLAST
+            for specificity checking, the option is included in PrimeRL and allows users to do so conveniently by pre-filling the Primer-BLAST submission
+            form with the selected pair.
+          </p>
+          <p><b>MFEprimer Off-Target Exclusion vs Primer-BLAST: Overview</b></p>
+          <div class="cmp-wrap">
+            <table class="cmp-table">
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Primer-BLAST (NCBI)</th>
+                  <th>MFEprimer (specificity check)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Core idea</td>
+                  <td>BLAST-based search + full primer-target alignment; then predicts potential amplicons from primer binding sites</td>
+                  <td>k-mer indexed binding-site search + thermodynamics (NN model) to score whether binding is stable enough to amplify</td>
+                </tr>
+                <tr>
+                  <td>Biggest strength in qRT-PCR QC</td>
+                  <td>Authoritative, curated, broad databases (RefSeq/GenBank choices) + straightforward reporting of candidate off-targets</td>
+                  <td>High-throughput, local/offline QC against your exact database; more “PCR-like” ranking via binding stability + amplicon constraints</td>
+                </tr>
+                <tr>
+                  <td>Pair behavior</td>
+                  <td>Can do primer-pair specificity checking (not just one primer at a time) when both primers are provided</td>
+                  <td>Predicts amplicons from primer pairs and reports specific/non-specific products; designed as a primer specificity engine</td>
+                </tr>
+                <tr>
+                  <td>Sensitivity knobs</td>
+                  <td>Mostly via BLAST/Primer-BLAST parameters and database choice; great “sanity check” behavior</td>
+                  <td>Very tunable (k, mismatches, etc.); can be made more/less sensitive (at compute cost)</td>
+                </tr>
+                <tr>
+                  <td>Throughput</td>
+                  <td>Better for a few assays at a time; web workflow</td>
+                  <td>Great for screening many primer pairs as part of a pipeline; fast index lookup</td>
+                </tr>
+                <tr>
+                  <td>Typical blind spot</td>
+                  <td>Not a thermodynamics-first model; can be less convenient for batch QC</td>
+                  <td>“Garbage in -&gt; garbage out”: results depend strongly on what’s in your database and your sensitivity settings</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Filter Pie: Troubleshooting</summary>
+        <div class="fold-body">
+          <ul>
+            <li>Shows where primer pairs are removed across filter stages.</li>
+            <li>Helps identify the current bottleneck (e.g. primer rules too strict, dimer cutoff too strict, specificity filter too strict).</li>
+            <li>Use it to decide <b>which</b> parameter to relax first instead of changing many settings at once.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Troubleshooting: No Primer Pair Found or No Pair Passes Specificity</summary>
+        <div class="fold-body">
+          <p>
+            If PrimeRL reports that no primer pairs were found, or that all candidates failed the specificity filter, the combined design
+            constraints are likely too stringent for the selected transcript. The recommended strategy is to relax parameters stepwise, starting
+            with the least biologically critical filters.
+          </p>
+          <p>
+            PrimeRL features a Filter Pie function that visualizes how many candidate pairs were excluded by each filter stage. This allows you
+            to identify which constraint dominates primer elimination and enables a rationale-based adjustment strategy rather than blind
+            trial-and-error relaxation.
+          </p>
+
+          <p><b>1. Disable SNP Avoidance (First Step)</b></p>
+          <p>If SNP filtering is enabled, disable it first.</p>
+          <p>
+            SNP-aware filtering can eliminate otherwise strong primer candidates, especially in polymorphism-rich genes. Variants outside the critical
+            3' region often have limited impact on amplification efficiency. Disabling this filter is therefore the safest initial adjustment.
+          </p>
+          <p>After disabling:</p>
+          <ul>
+            <li>Click "Refresh filter settings"</li>
+            <li>Re-run the pipeline</li>
+          </ul>
+          <p>This frequently restores viable primer pairs.</p>
+
+          <p><b>2. Temporarily Disable Off-Target Exclusion</b></p>
+          <p>
+            If all primers fail the specificity stage, temporarily disable MFEprimer transcriptome specificity filtering.
+          </p>
+          <p>This helps determine whether:</p>
+          <ul>
+            <li>True transcriptome cross-reactivity is limiting primer recovery</li>
+            <li>Or whether the specificity filter is too restrictive for the target sequence</li>
+          </ul>
+          <p>
+            If candidates appear once specificity filtering is disabled, consider adjusting structural parameters before re-enabling specificity.
+          </p>
+
+          <p><b>3. Relax Structural and Boundary Constraints</b></p>
+          <p>If no primers are generated even before specificity filtering, broaden the design space:</p>
+          <ul>
+            <li>Widen the Tm range (e.g., 57-63 degC)</li>
+            <li>Expand the primer length range (e.g., 19-25 bases)</li>
+            <li>Broaden the amplicon size range</li>
+            <li>Reduce required exon-exon overlap</li>
+            <li>Disable strict exon window limitations</li>
+          </ul>
+          <p>
+            If the target gene contains few exons, strong intron-exon boundary requirements can severely limit placement options. In such cases:
+          </p>
+          <ul>
+            <li>Relax or temporarily disable the "Span intron/exon boundary" option</li>
+            <li>Reduce the required junction overlap</li>
+          </ul>
+          <p>Short or minimally spliced transcripts often cannot satisfy strict junction-spanning rules.</p>
+
+          <p><b>4. Consider Targeting UTR Regions</b></p>
+          <p>
+            If specificity remains problematic, especially in conserved gene families, consider designing primers within the 5' or 3' untranslated regions (UTRs).
+          </p>
+          <p>UTRs are typically less conserved than coding sequences. Targeting UTRs can therefore:</p>
+          <ul>
+            <li>Improve transcript discrimination</li>
+            <li>Reduce cross-reactivity with related family members</li>
+            <li>Increase the likelihood of passing transcriptome specificity filters</li>
+          </ul>
+
+          <p><b>General Strategy</b></p>
+          <p>Relax constraints in the following order:</p>
+          <ul>
+            <li>SNP avoidance</li>
+            <li>Specificity filter (temporarily)</li>
+            <li>Structural and exon-boundary constraints</li>
+            <li>Shift target region toward UTRs if needed</li>
+          </ul>
+          <p>Using the Filter Pie visualization helps guide these adjustments efficiently and logically.</p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>Runtime Pie</summary>
+        <div class="fold-body">
+          <ul>
+            <li>Shows time split across major pipeline blocks (design, dimer checks, specificity check, sorting/rendering).</li>
+            <li>Use it to see whether runtime is dominated by Primer3, MFEprimer dimer, or transcriptome specificity testing.</li>
+            <li>Useful for choosing optimization strategy (CPU profile, DB indexing, reduced candidate count).</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <p class="footer">PrimeRL 1.1 runtime guide - HTML help page</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrimeRL About</title>
+  <style>
+    :root {
+      --ink: #1a2433;
+      --muted: #4e5d73;
+      --line: #d7e0ea;
+      --card: #ffffff;
+      --bg: #eef3f8;
+      --accent: #0f6fbf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+    .wrap {
+      width: min(980px, 92vw);
+      margin: 28px auto;
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f6fbf 0%, #124c86 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 22px 24px;
+      box-shadow: 0 7px 20px rgba(15, 57, 100, 0.2);
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem);
+    }
+    .hero p {
+      margin: 10px 0 0;
+      color: #e7f3ff;
+    }
+    .card {
+      margin-top: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(14, 33, 60, 0.05);
+    }
+    h2 {
+      margin: 0 0 10px;
+      color: #12406f;
+      font-size: 1.04rem;
+    }
+    p { margin: 0 0 10px; }
+    .contact-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      column-gap: 16px;
+      align-items: start;
+    }
+    .contact-copy {
+      min-width: 240px;
+    }
+    .brand-logo {
+      position: static;
+      width: 340px;
+      height: auto;
+      border-radius: 10px;
+      border: 1px solid #dde7f2;
+      box-shadow: 0 4px 12px rgba(14, 33, 60, 0.08);
+      display: block;
+    }
+    @media (max-width: 760px) {
+      .contact-card {
+        grid-template-columns: 1fr;
+      }
+      .brand-logo {
+        margin-top: 10px;
+        width: min(100%, 420px);
+      }
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #f7fafc;
+      border: 1px solid #dde7f2;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .footer {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>PrimeRL 1.1</h1>
+      <p>A Software to design Primers for RealTime PCRs</p>
+    </section>
+
+    <section class="card contact-card">
+      <div class="contact-copy">
+        <h2>Copyright and Contact</h2>
+        <p>Copyright (c) 2026- Sven Reischauer/ReischauerLab</p>
+        <p>Contact: Sven.Reischauer(at)uni-giessen.de</p>
+      </div>
+      <img
+        class="brand-logo"
+        src="./assets/reischauerlab_logo.png"
+        alt="Reischauer Laboratory logo"
+      >
+    </section>
+
+    <section class="card">
+      <h2>License</h2>
+      <pre>This software is released under the MIT License.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Third-Party Software</h2>
+      <p>Consolidated third-party notices are maintained in:</p>
+      <pre><a href="./THIRD_PARTY_NOTICES.html">docs/THIRD_PARTY_NOTICES.html</a></pre>
+      <p>Bundled license files and notices are in:</p>
+      <pre><a href="../third_party/licenses/index.html">third_party/licenses/</a></pre>
+      <p><b>Included components:</b> Primer3, curl/libcurl, OpenPyXL, MFEprimer, Splign/Spidey.</p>
+    </section>
+
+    <p class="footer">PrimeRL About page</p>
+  </main>
+</body>
+</html>

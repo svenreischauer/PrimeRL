@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "stats.parsed": 3169,
+    "stats.skipped_order": 0,
+    "stats.skipped_span": 192,
+    "stats.skipped_overlap": 0,
+    "returned_pairs": 50,
+    "spidey.used": true,
+    "spidey.source": "run_spidey",
+    "spidey.spidey_signature": true,
+    "spidey.full_identity_100": true,
+    "spidey.full_coverage_100": true,
+    "spidey.auto_boundary_count": 3,
+    "spidey.manual_boundary_count": 0,
+    "spidey.boundaries": [
+      168,
+      261,
+      420
+    ]
+  }
+}

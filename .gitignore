@@ -1,0 +1,44 @@
+﻿# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Test/tool caches
+.pytest_cache/
+.mypy_cache/
+
+# Local runtime artifacts
+DeepPrime/runtime/logs/
+DeepPrime/runtime/tmp/
+DeepPrime/runtime/cache/
+DeepPrime/runtime/gui_settings.json
+*.log
+
+# Large bundled runtime assets
+DeepPrime/databases/
+DeepPrime/tools/bin/
+DeepPrime/release/portable/
+tools/mfeprimer/
+third_party/sources/
+data/
+DeepPrime/release/installer/dist/
+release/min_runtime_bundle_*/
+release/DeepPrime_min_runtime_bundle_*.zip
+release/PrimeRL_*_exe_win64_nodb/
+release/PrimeRL_*_msi_win64/
+release/PrimeRL_*_portable*/
+release/*.zip
+releases/
+
+# Local agent metadata
+AGENTS.md
+
+# Local envs
+.venv/
+venv/
+.env
+
+# Editor/system noise
+.DS_Store
+Thumbs.db

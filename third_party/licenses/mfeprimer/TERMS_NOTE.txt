@@ -1,0 +1,26 @@
+MFEprimer License and Terms
+===========================
+
+Runtime binary:
+- DeepPrime/tools/bin/mfeprimer.exe
+
+Detected runtime version:
+- MFEprimer-4.2.4 (from `mfeprimer --help`)
+
+Upstream licensing terms (source: quwubin/MFEprimer-2.0 README, "Copyright and license"):
+- Copyright (c) 2008-2012. Wubin Qu and Chenggang Zhang.
+- "MFEprimer (all the versions) source and executables are freely available for
+  academic, nonprofit and personal use."
+- "Commercial licensing information please contact Dr. Chenggang Zhang."
+
+Primary source:
+- https://github.com/quwubin/MFEprimer-2.0
+  (README section: "Copyright and license")
+
+Additional project references:
+- https://www.mfeprimer.com/
+- https://github.com/quwubin/MFEprimer-3.0
+
+Release note:
+- If a different MFEprimer build/version is bundled later, update this file to the exact
+  upstream terms for that bundled version.

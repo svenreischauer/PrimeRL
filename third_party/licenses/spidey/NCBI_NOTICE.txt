@@ -1,0 +1,23 @@
+NCBI / Spidey Public Domain Notice
+==================================
+
+Runtime binaries:
+- DeepPrime/tools/bin/Spidey.exe
+- DeepPrime/tools/bin/Spidey_AVX2_FMA3.exe
+
+NCBI software notice text (primary-source excerpt):
+- "The NCBI toolkit software and data are produced and distributed by NCBI,
+  an agency of the United States Government. NCBl software is therefore a "United States
+  Government Work" under the terms of the United States Copyright Act."
+- "As a 'United States Government Work', the NCBI software is released into the public domain."
+- "The NCBI software is provided on an 'as is' basis..."
+
+Primary source:
+- NCBI C++ Toolkit public-domain notice:
+  https://ncbi.github.io/cxx-toolkit/pages/ch_public
+- NCBI policies/disclaimer:
+  https://www.ncbi.nlm.nih.gov/home/about/policies/#disclaimer
+
+Release note:
+- If a bundled Spidey binary contains additional third-party code or separate notices,
+  include those notices in this folder as well.
