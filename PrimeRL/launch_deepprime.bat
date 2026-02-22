@@ -6,7 +6,7 @@ set "APP=%ROOT%app"
 set "SCRIPT=%APP%\run_gui.py"
 
 if not exist "%SCRIPT%" (
-  echo DeepPrime launch script not found: "%SCRIPT%"
+  echo PrimeRL launch script not found: "%SCRIPT%"
   pause
   exit /b 2
 )

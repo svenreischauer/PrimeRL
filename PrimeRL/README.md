@@ -1,6 +1,6 @@
-﻿# DeepPrime Workspace
+# PrimeRL Workspace
 
-This folder is the new install-oriented home for the DeepPrime program.
+This folder is the new install-oriented home for the PrimeRL program.
 
 ## Purpose
 - keep runtime app code and distribution assets separate
@@ -19,23 +19,23 @@ This folder is the new install-oriented home for the DeepPrime program.
 See `docs/FOLDER_STRUCTURE.md` for details and migration mapping.
 
 ## Asset Staging (Installer Prep)
-- Script: `DeepPrime/tools/scripts/stage_assets.py`
-- Wrapper: `DeepPrime/tools/scripts/stage_assets.ps1`
+- Script: `PrimeRL/tools/scripts/stage_assets.py`
+- Wrapper: `PrimeRL/tools/scripts/stage_assets.ps1`
 
 Examples:
 ```powershell
 # Preview without writing
-& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\DeepPrimeRL\python_port\DeepPrime\tools\scripts\stage_assets.py" --dry-run
+& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --dry-run
 
 # Stage assets with hardlinks (fast, same disk)
-& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\DeepPrimeRL\python_port\DeepPrime\tools\scripts\stage_assets.py" --mode hardlink
+& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --mode hardlink
 ```
 
 Manifest output:
-- `DeepPrime/release/asset_manifest.json`
+- `PrimeRL/release/asset_manifest.json`
 
 ## Installer Build
-- Installer guide: `DeepPrime/docs/INSTALLER_BUILD.md`
-- Inno script: `DeepPrime/release/installer/DeepPrime.iss`
-- Build helper: `DeepPrime/release/installer/build_installer.ps1`
+- Installer guide: `PrimeRL/docs/INSTALLER_BUILD.md`
+- Inno script: `PrimeRL/release/installer/PrimeRL.iss`
+- Build helper: `PrimeRL/release/installer/build_installer.ps1`
 

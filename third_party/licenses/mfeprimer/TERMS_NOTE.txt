@@ -2,7 +2,7 @@ MFEprimer License and Terms
 ===========================
 
 Runtime binary:
-- DeepPrime/tools/bin/mfeprimer.exe
+- PrimeRL/tools/bin/mfeprimer.exe
 
 Detected runtime version:
 - MFEprimer-4.2.4 (from `mfeprimer --help`)

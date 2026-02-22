@@ -3,7 +3,7 @@
 These rules define what is allowed in Git and what must stay local.
 
 ## 1) Track in Git
-- Source code: `src/`, `DeepPrime/app/src/`
+- Source code: `src/`, `PrimeRL/app/src/`
 - Tests: `tests/`
 - Documentation: `docs/`, `README.md`, `TODO.md`
 - Build/setup scripts: `release/scripts/`, `tools/scripts/`
@@ -12,15 +12,15 @@ These rules define what is allowed in Git and what must stay local.
 
 ## 2) Never Track in Git
 - Downloaded transcriptome databases and indexes
-  - `DeepPrime/databases/`
+  - `PrimeRL/databases/`
 - Binary tool payloads and bundled executables
-  - `DeepPrime/tools/bin/`
+  - `PrimeRL/tools/bin/`
 - Runtime state/output
-  - `DeepPrime/runtime/logs/`
-  - `DeepPrime/runtime/tmp/`
-  - `DeepPrime/runtime/cache/`
-  - `DeepPrime/runtime/exports/`
-  - `DeepPrime/runtime/gui_settings.json`
+  - `PrimeRL/runtime/logs/`
+  - `PrimeRL/runtime/tmp/`
+  - `PrimeRL/runtime/cache/`
+  - `PrimeRL/runtime/exports/`
+  - `PrimeRL/runtime/gui_settings.json`
 - Built release artifacts and packaging outputs
   - `release/PrimeRL_*_exe_win64_nodb/`
   - `release/PrimeRL_*_msi_win64/`

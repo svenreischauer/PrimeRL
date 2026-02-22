@@ -2,7 +2,7 @@ curl License Note
 =================
 
 Binary used by runtime:
-- DeepPrime/tools/bin/curl.exe
+- PrimeRL/tools/bin/curl.exe
 
 Detected version in this bundle:
 - curl 8.16.0 (libcurl/8.16.0)

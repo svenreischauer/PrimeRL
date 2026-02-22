@@ -2,8 +2,8 @@ NCBI / Spidey Public Domain Notice
 ==================================
 
 Runtime binaries:
-- DeepPrime/tools/bin/Spidey.exe
-- DeepPrime/tools/bin/Spidey_AVX2_FMA3.exe
+- PrimeRL/tools/bin/Spidey.exe
+- PrimeRL/tools/bin/Spidey_AVX2_FMA3.exe
 
 NCBI software notice text (primary-source excerpt):
 - "The NCBI toolkit software and data are produced and distributed by NCBI,

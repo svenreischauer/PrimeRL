@@ -14,7 +14,7 @@ def _repo_root() -> Path:
 
 
 def _deepprime_root() -> Path:
-    return _repo_root() / "DeepPrime"
+    return _repo_root() / "PrimeRL"
 
 
 def _pick_existing(candidates: Iterable[Path]) -> Path | None:
@@ -83,7 +83,7 @@ def _sidecar_candidates(base: Path) -> list[Path]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Stage DeepPrime binaries and databases for installer prep.")
+    parser = argparse.ArgumentParser(description="Stage PrimeRL binaries and databases for installer prep.")
     parser.add_argument("--mode", choices=("hardlink", "copy"), default="hardlink")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")

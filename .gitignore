@@ -9,21 +9,21 @@ __pycache__/
 .mypy_cache/
 
 # Local runtime artifacts
-DeepPrime/runtime/logs/
-DeepPrime/runtime/tmp/
-DeepPrime/runtime/cache/
-DeepPrime/runtime/exports/
-DeepPrime/runtime/gui_settings.json
+PrimeRL/runtime/logs/
+PrimeRL/runtime/tmp/
+PrimeRL/runtime/cache/
+PrimeRL/runtime/exports/
+PrimeRL/runtime/gui_settings.json
 *.log
 
 # Large bundled runtime assets
-DeepPrime/databases/
-DeepPrime/tools/bin/
-DeepPrime/release/portable/
+PrimeRL/databases/
+PrimeRL/tools/bin/
+PrimeRL/release/portable/
 tools/mfeprimer/
 third_party/sources/
 data/
-DeepPrime/release/installer/dist/
+PrimeRL/release/installer/dist/
 release/min_runtime_bundle_*/
 release/DeepPrime_min_runtime_bundle_*.zip
 release/PrimeRL_*_exe_win64_nodb/

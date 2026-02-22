@@ -1,13 +1,13 @@
-﻿# DeepPrime Installer Build
+# PrimeRL Installer Build
 
-This folder contains a baseline Inno Setup installer for DeepPrime.
+This folder contains a baseline Inno Setup installer for PrimeRL.
 
 ## Files
-- `DeepPrime/release/installer/DeepPrime.iss`
-- `DeepPrime/release/installer/build_installer.ps1`
+- `PrimeRL/release/installer/PrimeRL.iss`
+- `PrimeRL/release/installer/build_installer.ps1`
 
 ## What gets installed
-- DeepPrime app launcher and source (`app/run_gui.py`, `src/deepprimerl`)
+- PrimeRL app launcher and source (`app/run_gui.py`, `src/PrimeRLrl`)
 - tool binaries (`tools/bin`)
 - databases (`databases/ensembl`, `databases/refseq`)
 - docs/config/runtime folder structure
@@ -16,10 +16,10 @@ This folder contains a baseline Inno Setup installer for DeepPrime.
 1. Install Inno Setup 6 (`ISCC.exe`).
 2. Run:
    ```powershell
-   & "C:\Users\svenr\Documents\DeepPrimeRL\python_port\DeepPrime\release\installer\build_installer.ps1" -Profile core
+   & "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile core
    ```
 3. Output installer:
-   - `DeepPrime/release/installer/dist/DeepPrimeSetup_0.2.0_core.exe`
+   - `PrimeRL/release/installer/dist/PrimeRLSetup_0.2.0_core.exe`
 
 ## Installer profiles
 - `core` (recommended for iteration)
@@ -40,16 +40,16 @@ This folder contains a baseline Inno Setup installer for DeepPrime.
 
 Build full installer:
 ```powershell
-& "C:\Users\svenr\Documents\DeepPrimeRL\python_port\DeepPrime\release\installer\build_installer.ps1" -Profile full
+& "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile full
 ```
 
 Build performance installer:
 ```powershell
-& "C:\Users\svenr\Documents\DeepPrimeRL\python_port\DeepPrime\release\installer\build_installer.ps1" -Profile performance
+& "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile performance
 ```
 
 ## Runtime note
-- Launcher: `launch_deepprime.bat`
+- Launcher: `launch_PrimeRL.bat`
 - It first tries bundled Python in `app/python/` (if present), then falls back to `pythonw/pyw/python` on PATH.
 - If no Python runtime is found, it shows an error and exits.
 

@@ -7,7 +7,7 @@ local tooling for primer design and specificity checks.
 - Application code: `src/primerl`
 - GUI launcher: `run_gui.py`
 - Tests: `tests`
-- Runtime structure (local): `DeepPrime/`
+- Runtime structure (local): `PrimeRL/`
 - Build scripts: `release/scripts`
 
 ## Repository Rules
