@@ -35,6 +35,9 @@ releases/
 # Local agent metadata
 AGENTS.md
 
+# Local order templates (license/distribution sensitive)
+third_party/Order sheets/*.xlsx
+
 # Local envs
 .venv/
 venv/
