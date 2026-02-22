@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This document summarizes third-party components used by DeepPrimeRL runtime and where their license texts/terms are stored in this repository.
+This document summarizes third-party components used by PrimeRL runtime and where their license texts/terms are stored in this repository.
 
 ## Components
 
