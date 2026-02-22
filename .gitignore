@@ -12,6 +12,7 @@ __pycache__/
 DeepPrime/runtime/logs/
 DeepPrime/runtime/tmp/
 DeepPrime/runtime/cache/
+DeepPrime/runtime/exports/
 DeepPrime/runtime/gui_settings.json
 *.log
 
