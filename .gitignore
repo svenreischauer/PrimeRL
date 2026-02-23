@@ -48,7 +48,6 @@ AGENTS.md
 
 # Local order templates (license/distribution sensitive)
 third_party/Order sheets/*.xlsx
-!third_party/Order sheets/MicrosynthUploadFormDNA.xlsx
 
 # Local envs
 .venv/
