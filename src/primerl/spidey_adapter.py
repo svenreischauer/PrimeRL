@@ -73,5 +73,3 @@ def extract_intron_exon_bounds(output: str) -> list[int]:
         bounds.pop()
     return bounds
 
-
-

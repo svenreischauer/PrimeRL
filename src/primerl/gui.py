@@ -63,6 +63,14 @@ from .spidey_adapter import (
     extract_intron_exon_bounds,
     run_spidey_with_transport,
 )
+from .platform_compat import (
+    BIN_EXT,
+    IS_APPLE_SILICON,
+    IS_WINDOWS,
+    candidate_exec_names,
+    open_file,
+    subprocess_run,
+)
 
 
 COLUMNS = [
@@ -114,12 +122,20 @@ ENSEMBL_DB_SPECIES_CHOICES: list[tuple[str, str]] = [
 SPEC_OFFTARGET_MIN_AMP_SIZE_BP = 60
 SPEC_OFFTARGET_MAX_AMP_SIZE_BP = 600
 
-BINARY_PROFILE_CHOICES = (
-    "Upstream original src",
-    "Clang znver2",
-    "Clang znver4",
-    "Clang x86-64-v3",
-)
+if IS_WINDOWS:
+    BINARY_PROFILE_CHOICES = (
+        "Upstream original src",
+        "Clang znver2",
+        "Clang znver4",
+        "Clang x86-64-v3",
+    )
+elif IS_APPLE_SILICON:
+    BINARY_PROFILE_CHOICES = (
+        "Upstream original src",
+        "Apple Silicon native",
+    )
+else:
+    BINARY_PROFILE_CHOICES = ("Upstream original src",)
 
 PAD_S = 8
 PAD_M = 16
@@ -133,14 +149,6 @@ try:
     from ttkbootstrap.tooltip import ToolTip as _BootstrapToolTip
 except Exception:  # pragma: no cover - tooltip support is optional
     _BootstrapToolTip = None
-
-
-def _subprocess_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-    if os.name == "nt":
-        flags = int(kwargs.get("creationflags", 0))
-        flags |= int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
-        kwargs["creationflags"] = flags
-    return subprocess.run(*args, **kwargs)
 
 
 def _enable_windows_dpi_awareness() -> None:
@@ -202,20 +210,53 @@ def _primerl_root() -> Path:
                 continue
     except OSError:
         pass
+    def _layout_score(root: Path) -> int:
+        tool_bin = root / "tools" / "bin"
+        runtime = root / "runtime"
+        if not (tool_bin.is_dir() and runtime.is_dir()):
+            return -1
+        score = 0
+        # Prefer populated runtime roots over empty scaffolding directories.
+        try:
+            score += min(20, sum(1 for _ in tool_bin.iterdir()))
+        except OSError:
+            pass
+        if any((tool_bin / n).exists() for n in candidate_exec_names("primer3_core")):
+            score += 50
+        if any((tool_bin / n).exists() for n in candidate_exec_names("ntthal")):
+            score += 20
+        if any((tool_bin / n).exists() for n in candidate_exec_names("spidey")):
+            score += 15
+        if any((tool_bin / n).exists() for n in candidate_exec_names("mfeprimer")):
+            score += 10
+        if (runtime / "gui_settings.example.json").exists():
+            score += 5
+        # DBs may be intentionally absent in lightweight app bundles.
+        if (root / "databases").is_dir():
+            score += 5
+        return score
+
+    best_root = app_root
+    best_score = -1
+    seen: set[Path] = set()
     for c in candidates:
-        if (
-            (c / "tools" / "bin").exists()
-            and (c / "databases").exists()
-            and (c / "runtime").exists()
-        ):
-            return c
+        if c in seen:
+            continue
+        seen.add(c)
+        score = _layout_score(c)
+        if score > best_score:
+            best_score = score
+            best_root = c
+    if best_score >= 0:
+        return best_root
     return app_root
 
 
 def _default_user_data_root() -> Path:
-    local_appdata = str(os.environ.get("LOCALAPPDATA") or "").strip()
-    if local_appdata:
-        return Path(local_appdata) / "PrimeRL"
+    if IS_WINDOWS:
+        local_appdata = str(os.environ.get("LOCALAPPDATA") or "").strip()
+        if local_appdata:
+            return Path(local_appdata) / "PrimeRL"
     return Path.home() / ".primerl"
 
 
@@ -246,7 +287,7 @@ def _primerl_path(*parts: str) -> str:
 
 
 def _is_processor_feature_present(flag_id: int) -> bool:
-    if os.name != "nt":
+    if not IS_WINDOWS:
         return False
     try:
         import ctypes
@@ -257,6 +298,10 @@ def _is_processor_feature_present(flag_id: int) -> bool:
 
 
 def _detect_best_binary_profile_for_cpu() -> tuple[str, str]:
+    if IS_APPLE_SILICON:
+        return "Apple Silicon native", "Apple Silicon (arm64) detected"
+    if not IS_WINDOWS:
+        return "Upstream original src", "non-Windows platform detected"
     # Windows PF constants: 40 = AVX2, 41 = AVX512F
     has_avx2 = _is_processor_feature_present(40)
     has_avx512f = _is_processor_feature_present(41)
@@ -270,18 +315,80 @@ def _detect_best_binary_profile_for_cpu() -> tuple[str, str]:
 
 
 def _infer_binary_profile_from_paths(primer3_path: str, ntthal_path: str) -> str:
-    p3 = str(primer3_path or "").replace("/", "\\").lower()
-    nt = str(ntthal_path or "").replace("/", "\\").lower()
+    p3 = str(primer3_path or "").replace("\\", "/").lower()
+    nt = str(ntthal_path or "").replace("\\", "/").lower()
     both = f"{p3} {nt}"
-    if "\\clang_profiles\\znver4\\" in both:
+    if "/clang_profiles/apple_silicon/" in both:
+        return "Apple Silicon native"
+    if "/clang_profiles/znver4/" in both:
         return "Clang znver4"
-    if "\\clang_profiles\\znver2\\" in both:
+    if "/clang_profiles/znver2/" in both:
         return "Clang znver2"
-    if "\\clang_profiles\\x86_64_v3\\" in both:
+    if "/clang_profiles/x86_64_v3/" in both:
         return "Clang x86-64-v3"
     if "primer3_clang" in both:
         return "Clang x86-64-v3"
     return "Upstream original src"
+
+
+def _tool_bin_roots() -> list[Path]:
+    roots: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add(path: Path) -> None:
+        p = path.resolve()
+        if p in seen:
+            return
+        seen.add(p)
+        if p.is_dir():
+            roots.append(p)
+
+    resource_root = _primerl_root()
+    _add(resource_root / "tools" / "bin")
+    _add(resource_root.parent / "tools" / "bin")
+
+    module_root = Path(__file__).resolve().parents[2]
+    _add(module_root / "tools" / "bin")
+    _add(module_root.parent / "tools" / "bin")
+
+    if getattr(sys, "frozen", False):
+        exe_contents = Path(sys.executable).resolve().parent.parent
+        _add(exe_contents / "Resources" / "PrimeRL" / "tools" / "bin")
+        _add(exe_contents / "Frameworks" / "PrimeRL" / "tools" / "bin")
+        _add(exe_contents / "Resources" / "tools" / "bin")
+        _add(exe_contents / "Frameworks" / "tools" / "bin")
+
+    if roots:
+        return roots
+
+    return [Path(_primerl_path("tools", "bin"))]
+
+
+def _tool_bin_exec_default(stem: str) -> str:
+    for base in _tool_bin_roots():
+        for name in candidate_exec_names(stem):
+            p = base / name
+            if p.exists() and p.is_file():
+                return str(p)
+    return ""
+
+
+def _tool_profile_exec_default(profile_rel: str, stem: str) -> str:
+    for bin_root in _tool_bin_roots():
+        base = bin_root / "clang_profiles" / profile_rel
+        for name in candidate_exec_names(stem):
+            p = base / name
+            if p.exists() and p.is_file():
+                return str(p)
+    return ""
+
+
+def _path_exec_default(path: str) -> str:
+    for name in candidate_exec_names(path):
+        p = shutil.which(name)
+        if p:
+            return p
+    return ""
 
 
 def _pd_stub(_s1: str, _s2: str, full: bool) -> float:
@@ -302,9 +409,11 @@ def _sanitize_oligo_name_token(raw: str) -> str:
 
 def _resolve_microsynth_template_path() -> Path:
     rel = Path("third_party") / "Order sheets" / "MicrosynthUploadFormDNA.xlsx"
+    exe_contents = Path(sys.executable).resolve().parent.parent if getattr(sys, "frozen", False) else Path()
     candidates = [
         Path.cwd() / rel,
         Path(__file__).resolve().parents[2] / rel,
+        exe_contents / "Resources" / rel,
         _primerl_root().parent / rel,
     ]
     for p in candidates:
@@ -416,7 +525,7 @@ def _run_spidey_alignment(
         )
 
         def _transport(cmd: list[str]) -> tuple[int, str]:
-            proc = _subprocess_run(
+            proc = subprocess_run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -459,7 +568,7 @@ def _ntthal_dg_kcal_uncached(
     if cfg.exists():
         cmd.extend(["-path", str(cfg)])
     try:
-        proc = _subprocess_run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        proc = subprocess_run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
         txt = (proc.stdout or "") + "\n" + (proc.stderr or "")
         m = re.search(r"dG\s*=\s*(-?\d+(?:\.\d+)?)", txt)
         if not m:
@@ -503,12 +612,15 @@ def _resolve_ntthal_exe(primer3_path: str, ntthal_path: str = "") -> Path | None
     if explicit.exists() and explicit.is_file():
         return explicit
     p3 = Path(primer3_path or "")
-    candidates = [
-        p3.with_name("ntthal_v2.6.1_AVX2_FMA3.exe"),
-        p3.with_name("ntthal.exe"),
-        Path(r"C:\Users\svenr\Documents\primerl\wip\ntthal_v2.6.1_AVX2_FMA3.exe"),
-        Path(r"C:\Users\svenr\Documents\primerl\wip\ntthal.exe"),
-    ]
+    candidates: list[Path] = []
+    if p3.name:
+        for name in ("ntthal", "ntthal_v2.6.1_AVX2_FMA3"):
+            for exec_name in candidate_exec_names(name):
+                candidates.append(p3.with_name(exec_name))
+    for bin_root in _tool_bin_roots():
+        for name in ("ntthal", "ntthal_v2.6.1_AVX2_FMA3"):
+            for exec_name in candidate_exec_names(name):
+                candidates.append(bin_root / exec_name)
     for ntthal in candidates:
         if ntthal.exists() and ntthal.is_file():
             return ntthal
@@ -639,7 +751,7 @@ def _filter_rows_with_mfeprimer(
                 str(detected_threads),
             ]
             try:
-                proc = _subprocess_run(
+                proc = subprocess_run(
                     cmd,
                     capture_output=True,
                     text=True,
@@ -941,7 +1053,7 @@ def _filter_rows_with_mfeprimer_spec(
                     snp_bed_path=(snp_bed_path if snp_enabled else ""),
                     snp_records_loaded=(snp_records_loaded if snp_enabled else 0),
                 )
-                proc = _subprocess_run(
+                proc = subprocess_run(
                     cmd,
                     capture_output=True,
                     text=True,
@@ -1387,22 +1499,78 @@ def _filter_rows_by_target_transcript_snps(
 
 
 def _http_transport(url: str) -> tuple[int, str]:
+    def _curl_json(max_time_sec: int) -> tuple[int, str]:
+        curl = shutil.which("curl")
+        if not curl:
+            return 127, "curl executable not found"
+        cmd = [
+            curl,
+            "-4",
+            "--http1.1",
+            "-sS",
+            "-L",
+            "--compressed",
+            "--retry",
+            "4",
+            "--retry-delay",
+            "1",
+            "--retry-connrefused",
+            "--connect-timeout",
+            "15",
+            "--max-time",
+            str(max(20, int(max_time_sec))),
+            "-H",
+            "Accept: application/json",
+            "-H",
+            "Content-Type: application/json",
+            url,
+        ]
+        proc = subprocess_run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        payload = (proc.stdout or "").strip()
+        err = (proc.stderr or "").strip()
+        if proc.returncode != 0:
+            if payload and err:
+                return proc.returncode, f"{err} {payload}".strip()
+            return proc.returncode, (err or payload or f"curl exit {proc.returncode}")
+        return 0, payload
+
+    curl_err = ""
+    if shutil.which("curl"):
+        code, payload = _curl_json(max_time_sec=120)
+        if code == 0 and payload:
+            return 0, payload
+        curl_err = payload
+
     req = Request(url, headers={"Accept": "application/json", "Content-Type": "application/json"})
-    try:
-        with urlopen(req, timeout=30) as r:
-            txt = r.read().decode("utf-8", errors="replace")
-        return 0, txt
-    except HTTPError as e:
-        body = ""
+    last_err = ""
+    for timeout_sec in (30, 60, 90):
         try:
-            body = e.read().decode("utf-8", errors="replace")
-        except Exception:
+            with urlopen(req, timeout=timeout_sec) as r:
+                txt = r.read().decode("utf-8", errors="replace")
+            return 0, txt
+        except HTTPError as e:
             body = ""
-        return 1, f"{e.code} {e.reason} {body}".strip()
-    except URLError as e:
-        return 1, str(e)
-    except Exception as e:
-        return 1, str(e)
+            try:
+                body = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                body = ""
+            return 1, f"{e.code} {e.reason} {body}".strip()
+        except URLError as e:
+            last_err = str(e)
+        except TimeoutError as e:
+            last_err = str(e)
+        except Exception as e:
+            last_err = str(e)
+        time.sleep(0.2)
+    if last_err and curl_err:
+        return 1, f"{last_err} (curl fallback: {curl_err})"
+    return 1, (last_err or curl_err)
 
 
 def _http_get_text(url: str, timeout_sec: int = 60) -> str:
@@ -1413,8 +1581,48 @@ def _http_get_text(url: str, timeout_sec: int = 60) -> str:
             "User-Agent": "primerl/1.0.0",
         },
     )
-    with urlopen(req, timeout=max(5, int(timeout_sec))) as r:
-        return r.read().decode("utf-8", errors="replace")
+    last_err: Exception | None = None
+    for t_sec in (max(10, int(timeout_sec)), max(20, int(timeout_sec) * 2)):
+        try:
+            with urlopen(req, timeout=t_sec) as r:
+                return r.read().decode("utf-8", errors="replace")
+        except Exception as exc:
+            last_err = exc
+            time.sleep(0.2)
+    curl = shutil.which("curl")
+    if curl:
+        cmd = [
+            curl,
+            "-4",
+            "--http1.1",
+            "-sS",
+            "-L",
+            "--compressed",
+            "--retry",
+            "3",
+            "--retry-delay",
+            "1",
+            "--retry-connrefused",
+            "--connect-timeout",
+            "15",
+            "--max-time",
+            str(max(30, int(timeout_sec) * 2)),
+            url,
+        ]
+        proc = subprocess_run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if proc.returncode == 0 and (proc.stdout or "").strip():
+            return proc.stdout
+        if proc.stderr:
+            last_err = RuntimeError(proc.stderr.strip())
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("unexpected download failure")
 
 
 def _resolve_ensembl_cdna_download(species_slug: str) -> tuple[str, str]:
@@ -1438,10 +1646,53 @@ def _resolve_ensembl_cdna_download(species_slug: str) -> tuple[str, str]:
 
 
 def _download_http_file(url: str, out_path: Path, timeout_sec: int = 120) -> None:
-    req = Request(url, headers={"User-Agent": "primerl/1.0.0"})
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with urlopen(req, timeout=max(10, int(timeout_sec))) as r, out_path.open("wb") as fh:
-        shutil.copyfileobj(r, fh, length=1024 * 1024)
+    req = Request(url, headers={"User-Agent": "primerl/1.0.0"})
+    last_err: Exception | None = None
+    curl = shutil.which("curl")
+    if curl:
+        cmd = [
+            curl,
+            "-4",
+            "--http1.1",
+            "-f",
+            "-L",
+            "--retry",
+            "4",
+            "--retry-delay",
+            "1",
+            "--retry-connrefused",
+            "--connect-timeout",
+            "20",
+            "--max-time",
+            str(max(60, int(timeout_sec) * 2)),
+            "--output",
+            str(out_path),
+            url,
+        ]
+        proc = subprocess_run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if proc.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
+            return
+        if proc.stderr:
+            last_err = RuntimeError(proc.stderr.strip())
+
+    for t_sec in (max(20, int(timeout_sec)), max(30, int(timeout_sec) * 2)):
+        try:
+            with urlopen(req, timeout=t_sec) as r, out_path.open("wb") as fh:
+                shutil.copyfileobj(r, fh, length=1024 * 1024)
+            return
+        except Exception as exc:
+            last_err = exc
+            time.sleep(0.3)
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("unexpected download failure")
 
 
 def _gunzip_file(gz_path: Path, out_path: Path) -> None:
@@ -1693,62 +1944,45 @@ def launch_gui() -> int:
     runtime_settings = _load_runtime_settings()
     defaults = {
         "primer3": _existing_default(
-            _primerl_path("tools", "bin", "primer3_core_tuned_gcc_native_20260215.exe"),
-            _primerl_path("tools", "bin", "primer3_core.exe"),
-            _primerl_path("tools", "bin", "primer3_core_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\primer3_core_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\primer3_core.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.0\src\primer3_core.exe",
+            _tool_profile_exec_default("apple_silicon", "primer3_core"),
+            _tool_bin_exec_default("primer3_core"),
         ),
         "spidey": _existing_default(
-            _primerl_path("tools", "bin", "spidey.exe"),
-            _primerl_path("tools", "bin", "Spidey.exe"),
-            _primerl_path("tools", "bin", "Spidey_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\Spidey_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\Spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\build\spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\build\Spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\clean\build\Spidey.exe",
+            _tool_bin_exec_default("spidey"),
+            _existing_default(
+                str(Path(_primerl_path("tools", "bin")) / "Spidey.exe"),
+                str(Path(_primerl_path("tools", "bin")) / "spidey.exe"),
+            ),
+            _path_exec_default("spidey"),
         ),
         "mrna": _existing_default(
             _primerl_data_path("databases", "ensembl", "mRNA.fasta"),
             _primerl_resource_path("databases", "ensembl", "mRNA.fasta"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\mRNA.fasta",
         ),
         "genomic": _existing_default(
             _primerl_data_path("databases", "ensembl", "genomic.fasta"),
             _primerl_resource_path("databases", "ensembl", "genomic.fasta"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\genomic.fasta",
         ),
         "mfeprimer": _existing_default(
-            _primerl_path("tools", "bin", "mfeprimer.exe"),
-            r"C:\Users\svenr\Documents\primerl\python_port\tools\mfeprimer\mfeprimer.exe",
-            r"C:\Users\svenr\Documents\primerl\mfeprimer.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\mfeprimer.exe",
+            _tool_profile_exec_default("apple_silicon", "mfeprimer"),
+            _tool_bin_exec_default("mfeprimer"),
+            _path_exec_default("mfeprimer"),
         ),
         "mfeprimer_transcriptome_fasta": _existing_default(
             _primerl_data_path("databases", "ensembl", "Danio_rerio.GRCz11.cdna.all.fa"),
             _primerl_data_path("databases", "refseq", "Danio_rerio.RefSeq.rna.all.fa"),
             _primerl_resource_path("databases", "ensembl", "Danio_rerio.GRCz11.cdna.all.fa"),
             _primerl_resource_path("databases", "refseq", "Danio_rerio.RefSeq.rna.all.fa"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\Danio_rerio.GRCz11.cdna.all.fa",
-            r"C:\Users\svenr\Documents\primerl\Example sequences\refseq\Danio_rerio.RefSeq.rna.all.fa",
         ),
         "ntthal": _existing_default(
-            _primerl_path("tools", "bin", "ntthal_tuned_gcc_native_20260215.exe"),
-            _primerl_path("tools", "bin", "ntthal.exe"),
-            _primerl_path("tools", "bin", "ntthal_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\ntthal_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\ntthal.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\ntthal.exe",
+            _tool_profile_exec_default("apple_silicon", "ntthal"),
+            _tool_bin_exec_default("ntthal"),
+            _tool_bin_exec_default("ntthal_v2.6.1_AVX2_FMA3"),
         ),
         "oligotm": _existing_default(
-            _primerl_path("tools", "bin", "oligotm.exe"),
-            _primerl_path("tools", "bin", "oligotm_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\oligotm_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\oligotm.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\oligotm.exe",
+            _tool_profile_exec_default("apple_silicon", "oligotm"),
+            _tool_bin_exec_default("oligotm"),
+            _tool_bin_exec_default("oligotm_v2.6.1_AVX2_FMA3"),
         ),
     }
 
@@ -2007,6 +2241,16 @@ def launch_gui() -> int:
         value=preset_from_spec_param_raw(str(mfeprimer_spec_params_var.get() or DEFAULT_SPEC_PARAMS_RAW))
     )
 
+    def _ensure_tool_path(var: tk.StringVar, stem: str, required_label: str) -> str:
+        current = str(var.get() or "").strip()
+        if current:
+            return current
+        resolved = _existing_default(_tool_bin_exec_default(stem), _path_exec_default(stem))
+        if resolved:
+            var.set(resolved)
+            return resolved
+        raise ValueError(f"{required_label} path is required.")
+
     def _build_specificity_controls(parent: ttk.LabelFrame) -> tuple[ttk.Checkbutton, ttk.Combobox, ttk.Checkbutton, ttk.Combobox]:
         controls = ttk.Frame(parent)
         controls.grid(row=0, column=0, sticky="nsew", padx=PAD_S, pady=(PAD_S, PAD_S))
@@ -2246,33 +2490,56 @@ def launch_gui() -> int:
         gen_text.insert("1.0", shown)
 
     def _binary_profile_targets(profile_name: str) -> dict[str, str]:
-        clang_root = Path(_primerl_path("tools", "bin", "clang_profiles"))
+        default_bin_roots = _tool_bin_roots()
+        clang_roots = [root / "clang_profiles" for root in default_bin_roots]
         name = str(profile_name or "").strip()
+
+        def _resolve_exec(base_dirs: list[Path], stem: str, fallback_dirs: list[Path] | None = None) -> str:
+            roots = list(base_dirs)
+            if fallback_dirs:
+                roots.extend(fallback_dirs)
+            for root in roots:
+                for exec_name in candidate_exec_names(stem):
+                    p = root / exec_name
+                    if p.exists():
+                        return str(p)
+            cands = candidate_exec_names(stem)
+            fallback_base = (base_dirs or fallback_dirs or [Path(_primerl_path("tools", "bin"))])[0]
+            return str(fallback_base / cands[0]) if cands else str(fallback_base / stem)
+
         if name == "Clang znver2":
-            base = clang_root / "znver2"
+            bases = [root / "znver2" for root in clang_roots]
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(bases, "primer3_core"),
+                "ntthal": _resolve_exec(bases, "ntthal"),
+                "oligotm": _resolve_exec(bases, "oligotm"),
             }
         if name == "Clang znver4":
-            base = clang_root / "znver4"
+            bases = [root / "znver4" for root in clang_roots]
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(bases, "primer3_core"),
+                "ntthal": _resolve_exec(bases, "ntthal"),
+                "oligotm": _resolve_exec(bases, "oligotm"),
             }
         if name == "Clang x86-64-v3":
-            base = clang_root / "x86_64_v3"
+            bases = [root / "x86_64_v3" for root in clang_roots]
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(bases, "primer3_core"),
+                "ntthal": _resolve_exec(bases, "ntthal"),
+                "oligotm": _resolve_exec(bases, "oligotm"),
             }
+        if name == "Apple Silicon native":
+            bases = [root / "apple_silicon" for root in clang_roots]
+            return {
+                "primer3": _resolve_exec(bases, "primer3_core", fallback_dirs=default_bin_roots),
+                "ntthal": _resolve_exec(bases, "ntthal", fallback_dirs=default_bin_roots),
+                "oligotm": _resolve_exec(bases, "oligotm", fallback_dirs=default_bin_roots),
+            }
+        bases = default_bin_roots
         return {
-            "primer3": _primerl_path("tools", "bin", "primer3_core.exe"),
-            "ntthal": _primerl_path("tools", "bin", "ntthal.exe"),
-            "oligotm": _primerl_path("tools", "bin", "oligotm.exe"),
+            "primer3": _resolve_exec(bases, "primer3_core"),
+            "ntthal": _resolve_exec(bases, "ntthal"),
+            "oligotm": _resolve_exec(bases, "oligotm"),
         }
 
     def _apply_binary_profile(profile_name: str, notify: bool = True, persist: bool = True) -> bool:
@@ -2876,35 +3143,44 @@ def launch_gui() -> int:
             _set_status("Selected rows are not available.")
             return
 
-        tpl_path = _resolve_microsynth_template_path()
-        if not tpl_path.exists():
-            _set_status(f"Template not found: {tpl_path}")
-            return
-
         load_workbook = _load_openpyxl_workbook_loader()
         if load_workbook is None:
             _set_status("openpyxl is required for Excel export but is not available.")
             return
 
+        tpl_path = _resolve_microsynth_template_path()
         gene_raw = str(gene_name_var.get() or state.get("ensembl_gene") or target_ensembl_gene_id_var.get() or "gene")
         gene_token = _sanitize_oligo_name_token(gene_raw)
 
         try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="Cannot parse header or footer so it will be ignored",
-                    category=UserWarning,
-                )
-                warnings.filterwarnings(
-                    "ignore",
-                    message="wmf image format is not supported so the image is being dropped",
-                    category=UserWarning,
-                )
-                wb = load_workbook(tpl_path)
-            if "DNA Order" not in wb.sheetnames:
-                raise RuntimeError("Template sheet 'DNA Order' not found.")
-            ws = wb["DNA Order"]
+            used_fallback_template = False
+            if tpl_path.exists():
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="Cannot parse header or footer so it will be ignored",
+                        category=UserWarning,
+                    )
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="wmf image format is not supported so the image is being dropped",
+                        category=UserWarning,
+                    )
+                    wb = load_workbook(tpl_path)
+                if "DNA Order" not in wb.sheetnames:
+                    raise RuntimeError("Template sheet 'DNA Order' not found.")
+                ws = wb["DNA Order"]
+            else:
+                # Keep export working in source-only app bundles where template xlsx is intentionally not shipped.
+                from openpyxl import Workbook  # type: ignore[import-not-found]
+
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "DNA Order"
+                ws.cell(row=1, column=1, value="Name")
+                ws.cell(row=1, column=2, value="Sequence")
+                ws.cell(row=1, column=3, value="Length")
+                used_fallback_template = True
 
             row_ptr = 2
             while True:
@@ -2946,10 +3222,14 @@ def launch_gui() -> int:
             ts = time.strftime("%Y%m%d_%H%M%S")
             out_path = out_dir / f"MicrosynthUploadFormDNA_filled_{gene_token}_{ts}.xlsx"
             wb.save(out_path)
-            _set_status(f"Exported {written} oligos to {out_path}")
+            if used_fallback_template:
+                _set_status(
+                    f"Exported {written} oligos to {out_path} (built-in fallback sheet; Microsynth template not bundled)."
+                )
+            else:
+                _set_status(f"Exported {written} oligos to {out_path}")
             try:
-                if os.name == "nt":
-                    os.startfile(str(out_path))
+                open_file(str(out_path))
             except Exception:
                 pass
         except Exception as exc:
@@ -3491,9 +3771,7 @@ def launch_gui() -> int:
                 _set_status("No cached run yet. Click Find primers first.")
                 return False
 
-            primer3_path = primer3_var.get().strip()
-            if not primer3_path:
-                raise ValueError("Primer3 path is required.")
+            primer3_path = _ensure_tool_path(primer3_var, "primer3_core", "Primer3")
 
             bounds = [int(b) for b in (state.get("bounds") or [])]
             template_len = int(state.get("template_len") or 0)
@@ -3697,6 +3975,7 @@ def launch_gui() -> int:
             mfe_path = mfeprimer_var.get()
             mfe_cutoff = float(mfe_dg_cutoff_var.get())
             run_spec = bool(spec_top50_var.get())
+            spec_guard_note = ""
             run_snp_check = bool(enable_snp_check_var.get()) and (not _is_human_target_context())
             target_gene_id = _active_target_gene_id()
             target_gene_symbol = str(state.get("ensembl_gene") or "").strip()
@@ -3706,9 +3985,11 @@ def launch_gui() -> int:
             )
             spec_db = mfeprimer_transcriptome_fasta_var.get()
             if run_spec and not target_gene_id and not target_gene_symbol:
-                raise ValueError(
-                    "Transcriptome specificity requires target gene information (ID or symbol). "
-                    "Retrieve from Ensembl or enter Target Ensembl gene ID."
+                run_spec = False
+                spec_top50_var.set(0)
+                spec_guard_note = (
+                    "Specificity testing was disabled because target gene information is missing. "
+                    "Retrieve from Ensembl or enter Target Ensembl gene ID to enable it."
                 )
             if run_spec and target_gene_id:
                 expected_slug = _infer_species_slug_from_gene_id(target_gene_id)
@@ -3722,10 +4003,11 @@ def launch_gui() -> int:
                         or slug_compact in db_name
                     )
                     if not species_match:
-                        raise ValueError(
-                            "Transcriptome DB species mismatch for Spec testing. "
-                            f"Target={expected_slug}, selected DB={Path(str(spec_db or '')).name}. "
-                            "Select a matching transcriptome DB or disable Spec testing."
+                        run_spec = False
+                        spec_top50_var.set(0)
+                        spec_guard_note = (
+                            "Specificity testing was disabled because transcriptome DB species mismatched the "
+                            f"target ({expected_slug} vs {Path(str(spec_db or '')).name})."
                         )
             snp_bed = str(state.get("current_snp_bed") or "").strip() if run_snp_check else ""
             snp_non3p_policy = str(snp_non3p_policy_var.get() or "soft").strip().lower()
@@ -3919,6 +4201,8 @@ def launch_gui() -> int:
                 msg += f" | {t_pre} | {t_post_txt}"
                 if auto_db_msg:
                     msg += f" | {auto_db_msg}"
+                if spec_guard_note:
+                    msg += f" | {spec_guard_note}"
                 if ntthal_note:
                     msg += f" | {ntthal_note}"
                 if mfe_note:
@@ -4008,9 +4292,7 @@ def launch_gui() -> int:
             if not genomic:
                 raise ValueError("Genomic sequence is empty.")
 
-            primer3_path = primer3_var.get().strip()
-            if not primer3_path:
-                raise ValueError("Primer3 path is required.")
+            primer3_path = _ensure_tool_path(primer3_var, "primer3_core", "Primer3")
             sp_path = spidey_var.get().strip()
             ensembl_bounds = sorted(
                 set(
@@ -4021,8 +4303,8 @@ def launch_gui() -> int:
             )
             has_ensembl_context = bool(str(state.get("ensembl_gene_id") or "").strip())
             use_ensembl_bounds = bool(ensembl_bounds) and has_ensembl_context
-            if (not use_ensembl_bounds) and (not sp_path):
-                raise ValueError("spidey path is required when no Ensembl exon boundaries are available.")
+            if not use_ensembl_bounds:
+                sp_path = _ensure_tool_path(spidey_var, "spidey", "spidey")
             ntthal_path = ntthal_var.get()
             spidey_large = bool(spidey_large_var.get())
             ie_limit = bool(ie_limit_var.get())
@@ -4706,12 +4988,3 @@ def launch_gui() -> int:
 
     root.mainloop()
     return 0
-
-
-
-
-
-
-
-
-

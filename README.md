@@ -36,3 +36,36 @@ Build Windows artifacts (local only):
 powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_exe.ps1 -Version 1.1 -Clean
 powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_msi.ps1 -Version 1.1.0 -Clean
 ```
+
+Build macOS `.app` + signing:
+```bash
+./release/scripts/build_app_macos.sh --version 1.1 --clean
+./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.1_app_macos_arm64_nodb/dist/PrimeRL.app
+./release/scripts/notarize_app_macos.sh --app release/PrimeRL_1.1_app_macos_arm64_nodb/dist/PrimeRL.app --keychain-profile PRIMERL_NOTARY
+```
+See: `release/README_BUILD_MACOS.md`
+
+## macOS Apple Silicon
+Quick launcher:
+```bash
+./start_primerl.sh
+```
+
+Finder launcher:
+```bash
+./start_primerl.command
+```
+
+What the launcher does:
+- creates `.venv` with `--system-site-packages` (if missing)
+- installs `ttkbootstrap` and `openpyxl` into that venv
+- warns if `spidey` is not available
+- starts `run_gui.py`
+
+Bootstrap/check script:
+```bash
+./tools/scripts/bootstrap_macos_apple_silicon.sh
+```
+
+The bootstrap script creates local runtime directories and reports missing external tools.
+It does not download or commit binaries.

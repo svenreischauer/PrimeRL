@@ -175,6 +175,26 @@ def _format_primer3_error(returncode: int, stdout: str, stderr: str) -> str:
             "Primer3 cannot find its runtime libraries (libstdc++). "
             "Make sure the tool's DLLs are placed next to the executable."
         )
+    if returncode == 132:
+        return (
+            "Primer3 exited with SIGILL (132). "
+            "This usually means an architecture mismatch or unsupported CPU instructions. "
+            "Use a native binary profile for this machine."
+        )
+    txt = f"{stderr or ''}\n{stdout or ''}".lower()
+    if any(
+        s in txt
+        for s in (
+            "dyld",
+            "library not loaded",
+            "bad cpu type",
+            "mach-o",
+        )
+    ):
+        return (
+            "Primer3 failed to load on macOS (dyld/architecture issue). "
+            "Verify you are using an Apple Silicon build and required dynamic libraries are available."
+        )
     return (stderr or stdout or "Primer3 execution failed").strip()
 
 
@@ -388,6 +408,5 @@ def collect_qpcr_pairs_from_primer3(
         skipped_overlap=skipped_overlap,
     )
     return pairs, stats
-
 
 

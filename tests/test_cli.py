@@ -173,7 +173,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["spidey"]["boundaries"], [100])
         self.assertEqual(payload["spidey"]["source"], "spidey_output")
 
-    def test_qpcr_design_run_spidey_mode_with_mock(self) -> None:
+    def test_qpcr_design_run_spidey_mode_with_mock_no_signature(self) -> None:
         primer3_content = "\n".join(
             [
                 "PRIMER_LEFT_0=10,20",
@@ -220,7 +220,6 @@ class CliTests(unittest.TestCase):
                 )
         self.assertEqual(rc, 0)
         self.assertEqual(payload["returned_pairs"], 1)
-        self.assertEqual(payload["spidey"]["source"], "run_spidey")
         self.assertEqual(payload["spidey"]["source"], "run_spidey")
 
     def test_qpcr_design_run_spidey_mode_with_mock(self) -> None:
@@ -384,5 +383,3 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-

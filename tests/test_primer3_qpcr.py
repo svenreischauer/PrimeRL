@@ -86,6 +86,24 @@ class RunPrimer3Tests(unittest.TestCase):
         self.assertEqual(out, "")
         self.assertIn("runtime libraries", err)
 
+    def test_run_primer3_sigill_132(self) -> None:
+        def runner(_path: str, _input_text: str) -> tuple[int, str, str]:
+            return 132, "", ""
+
+        ok, out, err = run_primer3_qpcr_output("ACGT", "primer3_core", Primer3RunSettings(), runner=runner)
+        self.assertFalse(ok)
+        self.assertEqual(out, "")
+        self.assertIn("SIGILL", err)
+
+    def test_run_primer3_macos_dyld_error(self) -> None:
+        def runner(_path: str, _input_text: str) -> tuple[int, str, str]:
+            return 1, "", "dyld: Library not loaded: libfoo.dylib"
+
+        ok, out, err = run_primer3_qpcr_output("ACGT", "primer3_core", Primer3RunSettings(), runner=runner)
+        self.assertFalse(ok)
+        self.assertEqual(out, "")
+        self.assertIn("macOS", err)
+
 
 class CollectPrimer3Tests(unittest.TestCase):
     def test_collect_basic_pair(self) -> None:
@@ -246,4 +264,3 @@ class SortPrimer3Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

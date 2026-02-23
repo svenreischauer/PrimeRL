@@ -1,11 +1,12 @@
-﻿from . import export_naming
-from . import primer3_qpcr
+﻿from importlib import import_module
+
 from . import ensembl_adapter
-from . import spidey_adapter
+from . import export_naming
+from . import golden
 from . import io_fasta
 from . import parity
-from . import gui
-from . import golden
+from . import primer3_qpcr
+from . import spidey_adapter
 
 __all__ = [
     "export_naming",
@@ -17,3 +18,11 @@ __all__ = [
     "gui",
     "golden",
 ]
+
+
+def __getattr__(name: str):
+    if name == "gui":
+        mod = import_module(".gui", __name__)
+        globals()["gui"] = mod
+        return mod
+    raise AttributeError(name)

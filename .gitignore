@@ -14,11 +14,18 @@ PrimeRL/runtime/tmp/
 PrimeRL/runtime/cache/
 PrimeRL/runtime/exports/
 PrimeRL/runtime/gui_settings.json
+runtime/logs/
+runtime/tmp/
+runtime/cache/
+runtime/exports/
+runtime/gui_settings.json
 *.log
 
 # Large bundled runtime assets
 PrimeRL/databases/
 PrimeRL/tools/bin/
+databases/
+tools/bin/
 PrimeRL/release/portable/
 tools/mfeprimer/
 third_party/sources/
@@ -29,6 +36,10 @@ release/DeepPrime_min_runtime_bundle_*.zip
 release/PrimeRL_*_exe_win64_nodb/
 release/PrimeRL_*_msi_win64/
 release/PrimeRL_*_portable*/
+release/PrimeRL_*_app_macos_arm64*/
+release/PrimeRL_*_app_macos_*/
+release/PrimeRL_*_macos*.dmg
+release/PrimeRL_*_macos*.zip
 release/*.zip
 releases/
 
@@ -37,6 +48,7 @@ AGENTS.md
 
 # Local order templates (license/distribution sensitive)
 third_party/Order sheets/*.xlsx
+!third_party/Order sheets/MicrosynthUploadFormDNA.xlsx
 
 # Local envs
 .venv/

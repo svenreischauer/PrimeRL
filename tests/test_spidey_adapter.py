@@ -100,8 +100,5 @@ class SpideyOutputTests(unittest.TestCase):
     def test_extract_bounds_empty(self) -> None:
         self.assertEqual(extract_intron_exon_bounds(""), [])
 
-
 if __name__ == "__main__":
     unittest.main()
-
-
