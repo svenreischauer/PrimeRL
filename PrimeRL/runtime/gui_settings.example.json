@@ -1,5 +1,5 @@
 {
-  "binary_profile": "Clang x86-64-v3",
+  "binary_profile": "Upstream original src",
   "max_genomic_view_bases": 10000,
   "mfeprimer_spec_params": "-k 9 --misMatch 1"
 }

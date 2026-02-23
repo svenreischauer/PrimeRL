@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Sequence
@@ -19,9 +17,9 @@ from .ensembl_adapter import (
 )
 from .export_naming import build_order_oligos
 from .golden import compare_summary, extract_summary
-from .gui import launch_gui
 from .io_fasta import read_first_fasta_sequence
 from .parity import compare_payloads, load_payload, run_json_command
+from .platform_compat import subprocess_run
 from .primer3_qpcr import (
     Primer3RunSettings,
     QpcrFilterSettings,
@@ -70,15 +68,13 @@ def _run_spidey_alignment(
         )
 
         def _transport(cmd: list[str]) -> tuple[int, str]:
-            run_kwargs: dict[str, object] = {
-                "capture_output": True,
-                "text": True,
-                "encoding": "utf-8",
-                "errors": "replace",
-            }
-            if os.name == "nt":
-                run_kwargs["creationflags"] = int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
-            proc = subprocess.run(cmd, **run_kwargs)
+            proc = subprocess_run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
             out = (proc.stdout or "")
             if proc.stderr:
                 out = out + ("\n" if out else "") + proc.stderr
@@ -243,13 +239,10 @@ def _cmd_qpcr_design(args: argparse.Namespace) -> int:
     spidey_source = "spidey_output" if spidey_info.get("source") == "spidey_output" else "run_spidey"
     spidey_info = dict(spidey_info)
     spidey_info["source"] = spidey_source
-    if "spidey_signature" in spidey_info and "spidey_signature" not in spidey_info:
-        spidey_info["spidey_signature"] = spidey_info["spidey_signature"]
 
     payload = {
         "stats": stats.__dict__,
         "returned_pairs": len(pairs),
-        "spidey": spidey_info,
         "spidey": spidey_info,
         "pairs": [p.to_legacy_row() for p in pairs],
     }
@@ -294,6 +287,8 @@ def _cmd_perl_parity(args: argparse.Namespace) -> int:
 
 
 def _cmd_gui(_args: argparse.Namespace) -> int:
+    from .gui import launch_gui
+
     return launch_gui()
 
 
@@ -464,6 +459,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
 

@@ -63,6 +63,14 @@ from .spidey_adapter import (
     extract_intron_exon_bounds,
     run_spidey_with_transport,
 )
+from .platform_compat import (
+    BIN_EXT,
+    IS_APPLE_SILICON,
+    IS_WINDOWS,
+    candidate_exec_names,
+    open_file,
+    subprocess_run,
+)
 
 
 COLUMNS = [
@@ -114,12 +122,20 @@ ENSEMBL_DB_SPECIES_CHOICES: list[tuple[str, str]] = [
 SPEC_OFFTARGET_MIN_AMP_SIZE_BP = 60
 SPEC_OFFTARGET_MAX_AMP_SIZE_BP = 600
 
-BINARY_PROFILE_CHOICES = (
-    "Upstream original src",
-    "Clang znver2",
-    "Clang znver4",
-    "Clang x86-64-v3",
-)
+if IS_WINDOWS:
+    BINARY_PROFILE_CHOICES = (
+        "Upstream original src",
+        "Clang znver2",
+        "Clang znver4",
+        "Clang x86-64-v3",
+    )
+elif IS_APPLE_SILICON:
+    BINARY_PROFILE_CHOICES = (
+        "Upstream original src",
+        "Apple Silicon native",
+    )
+else:
+    BINARY_PROFILE_CHOICES = ("Upstream original src",)
 
 PAD_S = 8
 PAD_M = 16
@@ -133,14 +149,6 @@ try:
     from ttkbootstrap.tooltip import ToolTip as _BootstrapToolTip
 except Exception:  # pragma: no cover - tooltip support is optional
     _BootstrapToolTip = None
-
-
-def _subprocess_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-    if os.name == "nt":
-        flags = int(kwargs.get("creationflags", 0))
-        flags |= int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
-        kwargs["creationflags"] = flags
-    return subprocess.run(*args, **kwargs)
 
 
 def _enable_windows_dpi_awareness() -> None:
@@ -213,9 +221,10 @@ def _primerl_root() -> Path:
 
 
 def _default_user_data_root() -> Path:
-    local_appdata = str(os.environ.get("LOCALAPPDATA") or "").strip()
-    if local_appdata:
-        return Path(local_appdata) / "PrimeRL"
+    if IS_WINDOWS:
+        local_appdata = str(os.environ.get("LOCALAPPDATA") or "").strip()
+        if local_appdata:
+            return Path(local_appdata) / "PrimeRL"
     return Path.home() / ".primerl"
 
 
@@ -246,7 +255,7 @@ def _primerl_path(*parts: str) -> str:
 
 
 def _is_processor_feature_present(flag_id: int) -> bool:
-    if os.name != "nt":
+    if not IS_WINDOWS:
         return False
     try:
         import ctypes
@@ -257,6 +266,10 @@ def _is_processor_feature_present(flag_id: int) -> bool:
 
 
 def _detect_best_binary_profile_for_cpu() -> tuple[str, str]:
+    if IS_APPLE_SILICON:
+        return "Apple Silicon native", "Apple Silicon (arm64) detected"
+    if not IS_WINDOWS:
+        return "Upstream original src", "non-Windows platform detected"
     # Windows PF constants: 40 = AVX2, 41 = AVX512F
     has_avx2 = _is_processor_feature_present(40)
     has_avx512f = _is_processor_feature_present(41)
@@ -270,18 +283,46 @@ def _detect_best_binary_profile_for_cpu() -> tuple[str, str]:
 
 
 def _infer_binary_profile_from_paths(primer3_path: str, ntthal_path: str) -> str:
-    p3 = str(primer3_path or "").replace("/", "\\").lower()
-    nt = str(ntthal_path or "").replace("/", "\\").lower()
+    p3 = str(primer3_path or "").replace("\\", "/").lower()
+    nt = str(ntthal_path or "").replace("\\", "/").lower()
     both = f"{p3} {nt}"
-    if "\\clang_profiles\\znver4\\" in both:
+    if "/clang_profiles/apple_silicon/" in both:
+        return "Apple Silicon native"
+    if "/clang_profiles/znver4/" in both:
         return "Clang znver4"
-    if "\\clang_profiles\\znver2\\" in both:
+    if "/clang_profiles/znver2/" in both:
         return "Clang znver2"
-    if "\\clang_profiles\\x86_64_v3\\" in both:
+    if "/clang_profiles/x86_64_v3/" in both:
         return "Clang x86-64-v3"
     if "primer3_clang" in both:
         return "Clang x86-64-v3"
     return "Upstream original src"
+
+
+def _tool_bin_exec_default(stem: str) -> str:
+    base = Path(_primerl_path("tools", "bin"))
+    for name in candidate_exec_names(stem):
+        p = base / name
+        if p.exists() and p.is_file():
+            return str(p)
+    return ""
+
+
+def _tool_profile_exec_default(profile_rel: str, stem: str) -> str:
+    base = Path(_primerl_path("tools", "bin", "clang_profiles", profile_rel))
+    for name in candidate_exec_names(stem):
+        p = base / name
+        if p.exists() and p.is_file():
+            return str(p)
+    return ""
+
+
+def _path_exec_default(path: str) -> str:
+    for name in candidate_exec_names(path):
+        p = shutil.which(name)
+        if p:
+            return p
+    return ""
 
 
 def _pd_stub(_s1: str, _s2: str, full: bool) -> float:
@@ -416,7 +457,7 @@ def _run_spidey_alignment(
         )
 
         def _transport(cmd: list[str]) -> tuple[int, str]:
-            proc = _subprocess_run(
+            proc = subprocess_run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -459,7 +500,7 @@ def _ntthal_dg_kcal_uncached(
     if cfg.exists():
         cmd.extend(["-path", str(cfg)])
     try:
-        proc = _subprocess_run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        proc = subprocess_run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
         txt = (proc.stdout or "") + "\n" + (proc.stderr or "")
         m = re.search(r"dG\s*=\s*(-?\d+(?:\.\d+)?)", txt)
         if not m:
@@ -503,12 +544,15 @@ def _resolve_ntthal_exe(primer3_path: str, ntthal_path: str = "") -> Path | None
     if explicit.exists() and explicit.is_file():
         return explicit
     p3 = Path(primer3_path or "")
-    candidates = [
-        p3.with_name("ntthal_v2.6.1_AVX2_FMA3.exe"),
-        p3.with_name("ntthal.exe"),
-        Path(r"C:\Users\svenr\Documents\primerl\wip\ntthal_v2.6.1_AVX2_FMA3.exe"),
-        Path(r"C:\Users\svenr\Documents\primerl\wip\ntthal.exe"),
-    ]
+    candidates: list[Path] = []
+    if p3.name:
+        for name in ("ntthal", "ntthal_v2.6.1_AVX2_FMA3"):
+            for exec_name in candidate_exec_names(name):
+                candidates.append(p3.with_name(exec_name))
+    bin_root = Path(_primerl_path("tools", "bin"))
+    for name in ("ntthal", "ntthal_v2.6.1_AVX2_FMA3"):
+        for exec_name in candidate_exec_names(name):
+            candidates.append(bin_root / exec_name)
     for ntthal in candidates:
         if ntthal.exists() and ntthal.is_file():
             return ntthal
@@ -639,7 +683,7 @@ def _filter_rows_with_mfeprimer(
                 str(detected_threads),
             ]
             try:
-                proc = _subprocess_run(
+                proc = subprocess_run(
                     cmd,
                     capture_output=True,
                     text=True,
@@ -941,7 +985,7 @@ def _filter_rows_with_mfeprimer_spec(
                     snp_bed_path=(snp_bed_path if snp_enabled else ""),
                     snp_records_loaded=(snp_records_loaded if snp_enabled else 0),
                 )
-                proc = _subprocess_run(
+                proc = subprocess_run(
                     cmd,
                     capture_output=True,
                     text=True,
@@ -1693,62 +1737,46 @@ def launch_gui() -> int:
     runtime_settings = _load_runtime_settings()
     defaults = {
         "primer3": _existing_default(
-            _primerl_path("tools", "bin", "primer3_core_tuned_gcc_native_20260215.exe"),
-            _primerl_path("tools", "bin", "primer3_core.exe"),
-            _primerl_path("tools", "bin", "primer3_core_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\primer3_core_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\primer3_core.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.0\src\primer3_core.exe",
+            _tool_profile_exec_default("apple_silicon", "primer3_core"),
+            _tool_bin_exec_default("primer3_core"),
         ),
         "spidey": _existing_default(
-            _primerl_path("tools", "bin", "spidey.exe"),
-            _primerl_path("tools", "bin", "Spidey.exe"),
-            _primerl_path("tools", "bin", "Spidey_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\Spidey_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\Spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\build\spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\build\Spidey.exe",
-            r"C:\Users\svenr\Documents\primerl\clean\build\Spidey.exe",
+            _tool_bin_exec_default("spidey"),
+            _existing_default(
+                str(Path(_primerl_path("tools", "bin")) / "Spidey.exe"),
+                str(Path(_primerl_path("tools", "bin")) / "spidey.exe"),
+            ),
+            _path_exec_default("spidey"),
+            _path_exec_default("minimap2"),
         ),
         "mrna": _existing_default(
             _primerl_data_path("databases", "ensembl", "mRNA.fasta"),
             _primerl_resource_path("databases", "ensembl", "mRNA.fasta"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\mRNA.fasta",
         ),
         "genomic": _existing_default(
             _primerl_data_path("databases", "ensembl", "genomic.fasta"),
             _primerl_resource_path("databases", "ensembl", "genomic.fasta"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\genomic.fasta",
         ),
         "mfeprimer": _existing_default(
-            _primerl_path("tools", "bin", "mfeprimer.exe"),
-            r"C:\Users\svenr\Documents\primerl\python_port\tools\mfeprimer\mfeprimer.exe",
-            r"C:\Users\svenr\Documents\primerl\mfeprimer.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\mfeprimer.exe",
+            _tool_profile_exec_default("apple_silicon", "mfeprimer"),
+            _tool_bin_exec_default("mfeprimer"),
+            _path_exec_default("mfeprimer"),
         ),
         "mfeprimer_transcriptome_fasta": _existing_default(
             _primerl_data_path("databases", "ensembl", "Danio_rerio.GRCz11.cdna.all.fa"),
             _primerl_data_path("databases", "refseq", "Danio_rerio.RefSeq.rna.all.fa"),
             _primerl_resource_path("databases", "ensembl", "Danio_rerio.GRCz11.cdna.all.fa"),
             _primerl_resource_path("databases", "refseq", "Danio_rerio.RefSeq.rna.all.fa"),
-            r"C:\Users\svenr\Documents\primerl\Example sequences\Danio_rerio.GRCz11.cdna.all.fa",
-            r"C:\Users\svenr\Documents\primerl\Example sequences\refseq\Danio_rerio.RefSeq.rna.all.fa",
         ),
         "ntthal": _existing_default(
-            _primerl_path("tools", "bin", "ntthal_tuned_gcc_native_20260215.exe"),
-            _primerl_path("tools", "bin", "ntthal.exe"),
-            _primerl_path("tools", "bin", "ntthal_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\ntthal_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\ntthal.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\ntthal.exe",
+            _tool_profile_exec_default("apple_silicon", "ntthal"),
+            _tool_bin_exec_default("ntthal"),
+            _tool_bin_exec_default("ntthal_v2.6.1_AVX2_FMA3"),
         ),
         "oligotm": _existing_default(
-            _primerl_path("tools", "bin", "oligotm.exe"),
-            _primerl_path("tools", "bin", "oligotm_v2.6.1_AVX2_FMA3.exe"),
-            r"C:\Users\svenr\Documents\primerl\wip\oligotm_v2.6.1_AVX2_FMA3.exe",
-            r"C:\Users\svenr\Documents\primerl\wip\oligotm.exe",
-            r"C:\Users\svenr\Documents\primerl\primer3\primer3-2.6.1\src\oligotm.exe",
+            _tool_profile_exec_default("apple_silicon", "oligotm"),
+            _tool_bin_exec_default("oligotm"),
+            _tool_bin_exec_default("oligotm_v2.6.1_AVX2_FMA3"),
         ),
     }
 
@@ -2248,31 +2276,48 @@ def launch_gui() -> int:
     def _binary_profile_targets(profile_name: str) -> dict[str, str]:
         clang_root = Path(_primerl_path("tools", "bin", "clang_profiles"))
         name = str(profile_name or "").strip()
+
+        def _resolve_exec(base_dir: Path, stem: str) -> str:
+            for exec_name in candidate_exec_names(stem):
+                p = base_dir / exec_name
+                if p.exists():
+                    return str(p)
+            cands = candidate_exec_names(stem)
+            return str(base_dir / cands[0]) if cands else str(base_dir / stem)
+
         if name == "Clang znver2":
             base = clang_root / "znver2"
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(base, "primer3_core"),
+                "ntthal": _resolve_exec(base, "ntthal"),
+                "oligotm": _resolve_exec(base, "oligotm"),
             }
         if name == "Clang znver4":
             base = clang_root / "znver4"
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(base, "primer3_core"),
+                "ntthal": _resolve_exec(base, "ntthal"),
+                "oligotm": _resolve_exec(base, "oligotm"),
             }
         if name == "Clang x86-64-v3":
             base = clang_root / "x86_64_v3"
             return {
-                "primer3": str(base / "primer3_core.exe"),
-                "ntthal": str(base / "ntthal.exe"),
-                "oligotm": str(base / "oligotm.exe"),
+                "primer3": _resolve_exec(base, "primer3_core"),
+                "ntthal": _resolve_exec(base, "ntthal"),
+                "oligotm": _resolve_exec(base, "oligotm"),
             }
+        if name == "Apple Silicon native":
+            base = clang_root / "apple_silicon"
+            return {
+                "primer3": _resolve_exec(base, "primer3_core"),
+                "ntthal": _resolve_exec(base, "ntthal"),
+                "oligotm": _resolve_exec(base, "oligotm"),
+            }
+        base = Path(_primerl_path("tools", "bin"))
         return {
-            "primer3": _primerl_path("tools", "bin", "primer3_core.exe"),
-            "ntthal": _primerl_path("tools", "bin", "ntthal.exe"),
-            "oligotm": _primerl_path("tools", "bin", "oligotm.exe"),
+            "primer3": _resolve_exec(base, "primer3_core"),
+            "ntthal": _resolve_exec(base, "ntthal"),
+            "oligotm": _resolve_exec(base, "oligotm"),
         }
 
     def _apply_binary_profile(profile_name: str, notify: bool = True, persist: bool = True) -> bool:
@@ -2948,8 +2993,7 @@ def launch_gui() -> int:
             wb.save(out_path)
             _set_status(f"Exported {written} oligos to {out_path}")
             try:
-                if os.name == "nt":
-                    os.startfile(str(out_path))
+                open_file(str(out_path))
             except Exception:
                 pass
         except Exception as exc:
@@ -4706,12 +4750,5 @@ def launch_gui() -> int:
 
     root.mainloop()
     return 0
-
-
-
-
-
-
-
 
 

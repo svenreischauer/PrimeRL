@@ -173,7 +173,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["spidey"]["boundaries"], [100])
         self.assertEqual(payload["spidey"]["source"], "spidey_output")
 
-    def test_qpcr_design_run_spidey_mode_with_mock(self) -> None:
+    def test_qpcr_design_run_spidey_mode_with_mock_no_signature(self) -> None:
         primer3_content = "\n".join(
             [
                 "PRIMER_LEFT_0=10,20",
@@ -221,6 +221,56 @@ class CliTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(payload["returned_pairs"], 1)
         self.assertEqual(payload["spidey"]["source"], "run_spidey")
+
+    def test_qpcr_design_run_minimap2_mode_with_mock(self) -> None:
+        primer3_content = "\n".join(
+            [
+                "PRIMER_LEFT_0=10,20",
+                "PRIMER_RIGHT_0=180,20",
+                "PRIMER_LEFT_0_SEQUENCE=AAAA",
+                "PRIMER_RIGHT_0_SEQUENCE=TTTT",
+                "PRIMER_LEFT_0_TM=60",
+                "PRIMER_RIGHT_0_TM=61",
+            ]
+        )
+        converted_output = "\n".join(
+            [
+                "minimap2 fallback report",
+                "Exon 1: 1-100 (mRNA)",
+                "Exon 2: 101-200 (mRNA)",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as td:
+            p3 = Path(td) / "primer3.out"
+            mrna = Path(td) / "mrna.fasta"
+            dna = Path(td) / "dna.fasta"
+            p3.write_text(primer3_content, encoding="utf-8")
+            mrna.write_text(">m\n" + ("ACGT" * 80) + "\n", encoding="utf-8")
+            dna.write_text(">d\n" + ("ACGT" * 200) + "\n", encoding="utf-8")
+            with patch("primerl.cli._run_spidey_alignment", return_value=(True, converted_output, "")) as run_mock:
+                rc, payload = self._run(
+                    [
+                        "qpcr-design",
+                        "--primer3-output",
+                        str(p3),
+                        "--template-len",
+                        "300",
+                        "--ie-span",
+                        "--run-spidey",
+                        "--spidey-path",
+                        "minimap2",
+                        "--mrna-fasta",
+                        str(mrna),
+                        "--genomic-fasta",
+                        str(dna),
+                    ]
+                )
+        self.assertEqual(rc, 0)
+        self.assertEqual(payload["returned_pairs"], 1)
+        self.assertEqual(payload["spidey"]["source"], "run_spidey")
+        self.assertEqual(payload["spidey"]["auto_boundary_count"], 1)
+        run_mock.assert_called_once()
+        self.assertEqual(run_mock.call_args.kwargs["spidey_path"], "minimap2")
         self.assertEqual(payload["spidey"]["source"], "run_spidey")
 
     def test_qpcr_design_run_spidey_mode_with_mock(self) -> None:
@@ -384,5 +434,4 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

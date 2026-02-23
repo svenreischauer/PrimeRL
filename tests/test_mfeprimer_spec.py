@@ -3,8 +3,10 @@ import unittest
 
 from primerl.mfeprimer_spec import (
     DEFAULT_SPEC_PARAM_TOKENS,
-    DEFAULT_SPEC_PARAMS_RAW,
+    SPEC_PRESET_SOFT,
+    SPEC_PRESET_STRICT,
     SOFT_SPEC_PARAMS_RAW,
+    STRICT_SPEC_PARAMS_RAW,
     build_mfeprimer_spec_cmd,
     preset_from_spec_param_raw,
     resolve_spec_param_tokens,
@@ -53,14 +55,13 @@ class MfeprimerSpecParamTests(unittest.TestCase):
         self.assertIn("using defaults", warnings[0].lower())
 
     def test_preset_mapping_soft_and_strict(self) -> None:
-        self.assertEqual(preset_from_spec_param_raw("-k 9 --misMatch 1"), "Soft")
-        self.assertEqual(preset_from_spec_param_raw("-k 8 --misMatch 1"), "Strict")
+        self.assertEqual(preset_from_spec_param_raw("-k 9 --misMatch 1"), SPEC_PRESET_SOFT)
+        self.assertEqual(preset_from_spec_param_raw("-k 8 --misMatch 1"), SPEC_PRESET_STRICT)
 
     def test_spec_param_raw_for_preset(self) -> None:
         self.assertEqual(spec_param_raw_for_preset("Soft"), SOFT_SPEC_PARAMS_RAW)
-        self.assertEqual(spec_param_raw_for_preset("Strict"), DEFAULT_SPEC_PARAMS_RAW)
+        self.assertEqual(spec_param_raw_for_preset("Strict"), STRICT_SPEC_PARAMS_RAW)
 
 
 if __name__ == "__main__":
     unittest.main()
-

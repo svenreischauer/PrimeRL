@@ -14,11 +14,18 @@ PrimeRL/runtime/tmp/
 PrimeRL/runtime/cache/
 PrimeRL/runtime/exports/
 PrimeRL/runtime/gui_settings.json
+runtime/logs/
+runtime/tmp/
+runtime/cache/
+runtime/exports/
+runtime/gui_settings.json
 *.log
 
 # Large bundled runtime assets
 PrimeRL/databases/
 PrimeRL/tools/bin/
+databases/
+tools/bin/
 PrimeRL/release/portable/
 tools/mfeprimer/
 third_party/sources/
