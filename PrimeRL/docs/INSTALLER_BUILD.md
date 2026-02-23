@@ -1,4 +1,4 @@
-# PrimeRL Installer Build
+﻿# PrimeRL Installer Build
 
 This folder contains a baseline Inno Setup installer for PrimeRL.
 
@@ -7,7 +7,7 @@ This folder contains a baseline Inno Setup installer for PrimeRL.
 - `PrimeRL/release/installer/build_installer.ps1`
 
 ## What gets installed
-- PrimeRL app launcher and source (`app/run_gui.py`, `src/PrimeRLrl`)
+- PrimeRL app launcher and source (`app/run_gui.py`, `src/PrimeRL`)
 - tool binaries (`tools/bin`)
 - databases (`databases/ensembl`, `databases/refseq`)
 - docs/config/runtime folder structure
@@ -16,7 +16,7 @@ This folder contains a baseline Inno Setup installer for PrimeRL.
 1. Install Inno Setup 6 (`ISCC.exe`).
 2. Run:
    ```powershell
-   & "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile core
+   & "C:\Users\svenr\Documents\PrimeRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile core
    ```
 3. Output installer:
    - `PrimeRL/release/installer/dist/PrimeRLSetup_0.2.0_core.exe`
@@ -40,12 +40,12 @@ This folder contains a baseline Inno Setup installer for PrimeRL.
 
 Build full installer:
 ```powershell
-& "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile full
+& "C:\Users\svenr\Documents\PrimeRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile full
 ```
 
 Build performance installer:
 ```powershell
-& "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile performance
+& "C:\Users\svenr\Documents\PrimeRL\python_port\PrimeRL\release\installer\build_installer.ps1" -Profile performance
 ```
 
 ## Runtime note
@@ -57,4 +57,5 @@ Build performance installer:
 1. Bundle embeddable Python into `app/python` for fully self-contained installs.
 2. Add app icon + version metadata.
 3. Add CI task that builds and hashes performance binaries before installer compile.
+
 

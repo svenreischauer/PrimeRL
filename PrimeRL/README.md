@@ -1,4 +1,4 @@
-# PrimeRL Workspace
+﻿# PrimeRL Workspace
 
 This folder is the new install-oriented home for the PrimeRL program.
 
@@ -25,10 +25,10 @@ See `docs/FOLDER_STRUCTURE.md` for details and migration mapping.
 Examples:
 ```powershell
 # Preview without writing
-& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --dry-run
+& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --dry-run
 
 # Stage assets with hardlinks (fast, same disk)
-& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRLRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --mode hardlink
+& "C:\Users\svenr\anaconda3\python.exe" "C:\Users\svenr\Documents\PrimeRL\python_port\PrimeRL\tools\scripts\stage_assets.py" --mode hardlink
 ```
 
 Manifest output:
@@ -38,4 +38,5 @@ Manifest output:
 - Installer guide: `PrimeRL/docs/INSTALLER_BUILD.md`
 - Inno script: `PrimeRL/release/installer/PrimeRL.iss`
 - Build helper: `PrimeRL/release/installer/build_installer.ps1`
+
 

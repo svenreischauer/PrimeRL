@@ -1,4 +1,4 @@
-# PrimeRL Folder Structure
+﻿# PrimeRL Folder Structure
 
 ## Proposed Runtime/Distribution Structure
 - `PrimeRL/app/src/PrimeRL/`
@@ -23,7 +23,7 @@
   - generated installer and packaged app outputs
 
 ## Current Source Mapping (Phase 1)
-- existing code remains in `src/PrimeRLrl/` during transition
+- existing code remains in `src/PrimeRL/` during transition
 - current `tools/` and sequence files remain where they are until path resolver migration
 - this folder is scaffolded now to support phased migration without breaking current workflow
 
@@ -32,3 +32,4 @@
 2. Move binary/database defaults to PrimeRL structure.
 3. Update launcher and packaging to read from this structure.
 4. Keep legacy fallback paths until installer is in place.
+
