@@ -37,6 +37,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_exe.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_msi.ps1 -Version 1.1.0 -Clean
 ```
 
+Build macOS `.app` + signing:
+```bash
+./release/scripts/build_app_macos.sh --version 1.1 --clean
+./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.1_app_macos_arm64_nodb/dist/PrimeRL.app
+./release/scripts/notarize_app_macos.sh --app release/PrimeRL_1.1_app_macos_arm64_nodb/dist/PrimeRL.app --keychain-profile PRIMERL_NOTARY
+```
+See: `release/README_BUILD_MACOS.md`
+
 ## macOS Apple Silicon
 Quick launcher:
 ```bash
