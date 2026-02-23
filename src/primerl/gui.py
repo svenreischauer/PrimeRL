@@ -210,13 +210,43 @@ def _primerl_root() -> Path:
                 continue
     except OSError:
         pass
+    def _layout_score(root: Path) -> int:
+        tool_bin = root / "tools" / "bin"
+        databases = root / "databases"
+        runtime = root / "runtime"
+        if not (tool_bin.is_dir() and databases.is_dir() and runtime.is_dir()):
+            return -1
+        score = 0
+        # Prefer populated runtime roots over empty scaffolding directories.
+        try:
+            score += min(20, sum(1 for _ in tool_bin.iterdir()))
+        except OSError:
+            pass
+        if any((tool_bin / n).exists() for n in candidate_exec_names("primer3_core")):
+            score += 50
+        if any((tool_bin / n).exists() for n in candidate_exec_names("ntthal")):
+            score += 20
+        if any((tool_bin / n).exists() for n in candidate_exec_names("spidey")):
+            score += 15
+        if any((tool_bin / n).exists() for n in candidate_exec_names("mfeprimer")):
+            score += 10
+        if (runtime / "gui_settings.example.json").exists():
+            score += 5
+        return score
+
+    best_root = app_root
+    best_score = -1
+    seen: set[Path] = set()
     for c in candidates:
-        if (
-            (c / "tools" / "bin").exists()
-            and (c / "databases").exists()
-            and (c / "runtime").exists()
-        ):
-            return c
+        if c in seen:
+            continue
+        seen.add(c)
+        score = _layout_score(c)
+        if score > best_score:
+            best_score = score
+            best_root = c
+    if best_score >= 0:
+        return best_root
     return app_root
 
 
@@ -1747,7 +1777,6 @@ def launch_gui() -> int:
                 str(Path(_primerl_path("tools", "bin")) / "spidey.exe"),
             ),
             _path_exec_default("spidey"),
-            _path_exec_default("minimap2"),
         ),
         "mrna": _existing_default(
             _primerl_data_path("databases", "ensembl", "mRNA.fasta"),
@@ -2034,6 +2063,16 @@ def launch_gui() -> int:
     spec_sensitivity_preset_var = tk.StringVar(
         value=preset_from_spec_param_raw(str(mfeprimer_spec_params_var.get() or DEFAULT_SPEC_PARAMS_RAW))
     )
+
+    def _ensure_tool_path(var: tk.StringVar, stem: str, required_label: str) -> str:
+        current = str(var.get() or "").strip()
+        if current:
+            return current
+        resolved = _existing_default(_tool_bin_exec_default(stem), _path_exec_default(stem))
+        if resolved:
+            var.set(resolved)
+            return resolved
+        raise ValueError(f"{required_label} path is required.")
 
     def _build_specificity_controls(parent: ttk.LabelFrame) -> tuple[ttk.Checkbutton, ttk.Combobox, ttk.Checkbutton, ttk.Combobox]:
         controls = ttk.Frame(parent)
@@ -3535,9 +3574,7 @@ def launch_gui() -> int:
                 _set_status("No cached run yet. Click Find primers first.")
                 return False
 
-            primer3_path = primer3_var.get().strip()
-            if not primer3_path:
-                raise ValueError("Primer3 path is required.")
+            primer3_path = _ensure_tool_path(primer3_var, "primer3_core", "Primer3")
 
             bounds = [int(b) for b in (state.get("bounds") or [])]
             template_len = int(state.get("template_len") or 0)
@@ -4052,9 +4089,7 @@ def launch_gui() -> int:
             if not genomic:
                 raise ValueError("Genomic sequence is empty.")
 
-            primer3_path = primer3_var.get().strip()
-            if not primer3_path:
-                raise ValueError("Primer3 path is required.")
+            primer3_path = _ensure_tool_path(primer3_var, "primer3_core", "Primer3")
             sp_path = spidey_var.get().strip()
             ensembl_bounds = sorted(
                 set(
@@ -4750,5 +4785,3 @@ def launch_gui() -> int:
 
     root.mainloop()
     return 0
-
-

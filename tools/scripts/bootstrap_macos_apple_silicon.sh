@@ -5,8 +5,14 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
+APP_ROOT="$REPO_ROOT"
+if [[ -d "$REPO_ROOT/PrimeRL/runtime" && -d "$REPO_ROOT/PrimeRL/databases" ]]; then
+  APP_ROOT="$REPO_ROOT/PrimeRL"
+fi
+
 echo "PrimeRL macOS Apple Silicon bootstrap"
 echo "Repo: $REPO_ROOT"
+echo "Runtime root: $APP_ROOT"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Warning: this script is intended for macOS (Darwin)."
@@ -15,13 +21,12 @@ if [[ "$(uname -m)" != "arm64" ]]; then
   echo "Warning: this script targets Apple Silicon (arm64)."
 fi
 
-mkdir -p PrimeRL/tools/bin
-mkdir -p PrimeRL/tools/bin/clang_profiles/apple_silicon
-mkdir -p PrimeRL/tools/bin/primer3_config
-mkdir -p PrimeRL/databases/ensembl
-mkdir -p PrimeRL/databases/refseq
-mkdir -p PrimeRL/runtime/logs PrimeRL/runtime/tmp PrimeRL/runtime/cache PrimeRL/runtime/exports
-mkdir -p tools/bin databases runtime/logs runtime/tmp runtime/cache runtime/exports
+mkdir -p "$APP_ROOT/tools/bin"
+mkdir -p "$APP_ROOT/tools/bin/clang_profiles/apple_silicon"
+mkdir -p "$APP_ROOT/tools/bin/primer3_config"
+mkdir -p "$APP_ROOT/databases/ensembl"
+mkdir -p "$APP_ROOT/databases/refseq"
+mkdir -p "$APP_ROOT/runtime/logs" "$APP_ROOT/runtime/tmp" "$APP_ROOT/runtime/cache" "$APP_ROOT/runtime/exports"
 
 echo
 echo "Directory scaffolding created."
@@ -50,16 +55,15 @@ check_tool() {
   fi
 }
 
-check_tool primer3_core PrimeRL/tools/bin/primer3_core tools/bin/primer3_core
-check_tool ntthal PrimeRL/tools/bin/ntthal tools/bin/ntthal
-check_tool oligotm PrimeRL/tools/bin/oligotm tools/bin/oligotm
-check_tool spidey PrimeRL/tools/bin/spidey tools/bin/spidey
-check_tool mfeprimer PrimeRL/tools/bin/mfeprimer tools/bin/mfeprimer
-check_tool minimap2
+check_tool primer3_core "$APP_ROOT/tools/bin/primer3_core"
+check_tool ntthal "$APP_ROOT/tools/bin/ntthal"
+check_tool oligotm "$APP_ROOT/tools/bin/oligotm"
+check_tool spidey "$APP_ROOT/tools/bin/spidey"
+check_tool mfeprimer "$APP_ROOT/tools/bin/mfeprimer"
 
 echo
 echo "Next steps (manual/source-only):"
-echo "  1) Build Primer3 binaries for arm64 and place under PrimeRL/tools/bin/ and/or clang_profiles/apple_silicon/."
-echo "  2) Build Spidey for arm64 or install minimap2 (brew install minimap2) as fallback."
-echo "  3) Download mfeprimer darwin_arm64 and place executable in PrimeRL/tools/bin/mfeprimer."
-echo "  4) Copy/download required FASTA databases into PrimeRL/databases/."
+echo "  1) Build Primer3 binaries for arm64 and place under $APP_ROOT/tools/bin/ and/or clang_profiles/apple_silicon/."
+echo "  2) Build Spidey for arm64 and place it under $APP_ROOT/tools/bin/spidey."
+echo "  3) Download mfeprimer darwin_arm64 and place executable in $APP_ROOT/tools/bin/mfeprimer."
+echo "  4) Copy/download required FASTA databases into $APP_ROOT/databases/."

@@ -51,7 +51,7 @@ Finder launcher:
 What the launcher does:
 - creates `.venv` with `--system-site-packages` (if missing)
 - installs `ttkbootstrap` and `openpyxl` into that venv
-- warns if neither `spidey` nor `minimap2` is available
+- warns if `spidey` is not available
 - starts `run_gui.py`
 
 Bootstrap/check script:

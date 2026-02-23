@@ -15,7 +15,7 @@ class PlatformCompatTests(unittest.TestCase):
 
     def test_normalize_exec_name(self) -> None:
         self.assertEqual(platform_compat.normalize_exec_name("C:/bin/Spidey.exe"), "spidey")
-        self.assertEqual(platform_compat.normalize_exec_name("/usr/local/bin/minimap2"), "minimap2")
+        self.assertEqual(platform_compat.normalize_exec_name("/usr/local/bin/primer3_core"), "primer3_core")
 
     def test_subprocess_run_windows_adds_no_window_flag(self) -> None:
         captured: dict[str, object] = {}

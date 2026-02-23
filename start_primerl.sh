@@ -23,13 +23,8 @@ elif command -v spidey >/dev/null 2>&1; then
   has_spidey=1
 fi
 
-has_minimap2=0
-if command -v minimap2 >/dev/null 2>&1; then
-  has_minimap2=1
-fi
-
-if [[ "$has_spidey" -eq 0 && "$has_minimap2" -eq 0 ]]; then
-  echo "Warning: neither spidey nor minimap2 was found. Alignment-backed boundary detection may fail." >&2
+if [[ "$has_spidey" -eq 0 ]]; then
+  echo "Warning: spidey was not found. Alignment-backed boundary detection may fail." >&2
 fi
 
 PYTHONPATH=src python run_gui.py
