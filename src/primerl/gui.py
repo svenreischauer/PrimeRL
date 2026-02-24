@@ -1990,6 +1990,14 @@ def launch_gui() -> int:
     root.title("PrimeRL v1.1")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
+    try:
+        screen_h = int(root.winfo_screenheight())
+    except Exception:
+        screen_h = 1080
+    compact_layout = screen_h <= 1120
+    seq_text_rows = 7 if compact_layout else 10
+    map_canvas_height = 84 if compact_layout else 120
+    result_tree_rows = 8 if compact_layout else 12
 
     root_container = ttk.Frame(root, padding=PAD_L)
     root_container.grid(row=0, column=0, sticky=NSEW)
@@ -2188,7 +2196,6 @@ def launch_gui() -> int:
     def _build_sequence_boxes(parent: ttk.Frame) -> tuple[tk.Text, tk.Text]:
         seqs = ttk.Frame(parent)
         seqs.grid(row=2, column=0, sticky=EW, pady=(0, PAD_M))
-
         lf_gen = ttk.LabelFrame(seqs, text="Genomic Sequence", style="SectionHeader.TLabelframe", padding=PAD_S)
         lf_gen.grid(row=0, column=0, sticky=NSEW, padx=(0, PAD_S))
         lf_mrna = ttk.LabelFrame(seqs, text="cDNA Sequence", style="SectionHeader.TLabelframe", padding=PAD_S)
@@ -2196,9 +2203,9 @@ def launch_gui() -> int:
         seqs.columnconfigure(0, weight=1)
         seqs.columnconfigure(1, weight=1)
 
-        gen_widget = tk.Text(lf_gen, height=10, wrap="word")
+        gen_widget = tk.Text(lf_gen, height=seq_text_rows, wrap="word")
         gen_widget.pack(fill="both", expand=True, padx=PAD_S // 2, pady=PAD_S // 2)
-        mrna_widget = tk.Text(lf_mrna, height=10, wrap="word")
+        mrna_widget = tk.Text(lf_mrna, height=seq_text_rows, wrap="word")
         mrna_widget.pack(fill="both", expand=True, padx=PAD_S // 2, pady=PAD_S // 2)
         return gen_widget, mrna_widget
 
@@ -2322,7 +2329,13 @@ def launch_gui() -> int:
         results = ttk.LabelFrame(parent, text="Results", style="SectionHeader.TLabelframe", padding=PAD_S)
         results.grid(row=4, column=0, sticky=NSEW, pady=(0, PAD_M))
 
-        result_tree = ttk.Treeview(results, columns=[c[0] for c in COLUMNS], show="headings", selectmode="extended")
+        result_tree = ttk.Treeview(
+            results,
+            columns=[c[0] for c in COLUMNS],
+            show="headings",
+            selectmode="extended",
+            height=result_tree_rows,
+        )
         sortable_cols = {"amp", "pd", "pd_full"}
         for cid, title, width in COLUMNS:
             if cid in sortable_cols:
@@ -2347,7 +2360,13 @@ def launch_gui() -> int:
             command=lambda: _safe_draw_cdna_map(),
         )
         snp_view_chk.grid(row=0, column=1, sticky="e")
-        map_widget = tk.Canvas(results, height=120, bg="#f5f5f5", highlightthickness=1, highlightbackground="#c0c0c0")
+        map_widget = tk.Canvas(
+            results,
+            height=map_canvas_height,
+            bg="#f5f5f5",
+            highlightthickness=1,
+            highlightbackground="#c0c0c0",
+        )
         map_widget.grid(row=3, column=0, columnspan=2, sticky="ew")
         results.rowconfigure(0, weight=1)
         results.columnconfigure(0, weight=1)
@@ -4715,6 +4734,710 @@ def launch_gui() -> int:
         def _open_about() -> None:
             _open_local_html("About", "ABOUT.html")
 
+        def _open_existing_primers_tester() -> None:
+            t_win = tk.Toplevel(win)
+            t_win.title("Test Existing Primers")
+            t_win.transient(win)
+            t_frm = ttk.Frame(t_win, padding=10)
+            t_frm.pack(fill="both", expand=True)
+
+            species_labels = [label for label, _slug in ENSEMBL_DB_SPECIES_CHOICES]
+            species_slug_by_label = {label: slug for label, slug in ENSEMBL_DB_SPECIES_CHOICES}
+            species_label_by_slug = {slug: label for label, slug in ENSEMBL_DB_SPECIES_CHOICES}
+            current_slug = str(state.get("ensembl_species") or "homo_sapiens").strip().lower()
+            default_species_label = species_label_by_slug.get(current_slug, species_labels[0] if species_labels else "")
+
+            fp_var = tk.StringVar(value="")
+            rp_var = tk.StringVar(value="")
+            gene_var = tk.StringVar(value=str(state.get("ensembl_gene") or ""))
+            species_var = tk.StringVar(value=default_species_label)
+            db_hint_var = tk.StringVar(value="")
+            checks_summary_var = tk.StringVar(value="Checks passed: -")
+            busy = {"value": False}
+
+            def _safe_int(txt: str, default: int) -> int:
+                try:
+                    return int(str(txt).strip())
+                except Exception:
+                    return int(default)
+
+            def _safe_float(txt: str, default: float) -> float:
+                try:
+                    return float(str(txt).strip())
+                except Exception:
+                    return float(default)
+
+            def _simple_tm(seq: str) -> float:
+                s = str(seq or "").upper()
+                at = s.count("A") + s.count("T")
+                gc = s.count("G") + s.count("C")
+                return float((2 * at) + (4 * gc))
+
+            def _gc_pct(seq: str) -> float:
+                s = str(seq or "").upper()
+                if not s:
+                    return 0.0
+                gc = s.count("G") + s.count("C")
+                return (100.0 * gc) / len(s)
+
+            def _has_excluded_repeats_or_runs_local(seq: str, run_n: int, repeat_n: int) -> bool:
+                run_n = max(1, int(run_n))
+                repeat_real = max(0, int(repeat_n) - 1)
+                run_pat = re.compile(rf"(C{{{run_n},}}|A{{{run_n},}}|G{{{run_n},}}|T{{{run_n},}})", re.IGNORECASE)
+                if run_pat.search(seq):
+                    return True
+                rep_pat = re.compile(rf"(.{{2,}})\1{{{repeat_real},}}")
+                return bool(rep_pat.search(seq))
+
+            def _reverse_complement(seq: str) -> str:
+                tr = str.maketrans("ACGTacgt", "TGCAtgca")
+                return str(seq or "").translate(tr)[::-1]
+
+            def _find_all_subseq(haystack: str, needle: str, max_hits: int = 64) -> list[int]:
+                src = str(haystack or "")
+                pat = str(needle or "")
+                if not src or not pat:
+                    return []
+                hits: list[int] = []
+                start = 0
+                while len(hits) < max_hits:
+                    pos = src.find(pat, start)
+                    if pos < 0:
+                        break
+                    hits.append(pos)
+                    start = pos + 1
+                return hits
+
+            def _resolve_tester_ensembl_context(
+                species_slug_txt: str,
+                target_gene_txt: str,
+            ) -> tuple[dict[str, object] | None, str]:
+                gene_txt = str(target_gene_txt or "").strip()
+                if not gene_txt:
+                    return None, "missing gene"
+
+                gene_id = _normalize_ensembl_gene_id(gene_txt)
+                if gene_id:
+                    lookup_url = f"https://rest.ensembl.org/lookup/id/{gene_id}?expand=1"
+                else:
+                    species_norm = str(species_slug_txt or "").strip().lower()
+                    if not species_norm:
+                        return None, "missing species for Ensembl symbol lookup"
+                    lookup_url = build_lookup_symbol_url(species_norm, gene_txt)
+
+                lookup = fetch_json_with_transport(lookup_url, _http_transport)
+                if isinstance(lookup, EnsemblNoGeneFound):
+                    return None, "No Ensembl gene found for provided symbol"
+                if isinstance(lookup, EnsemblError):
+                    return None, str(lookup.message or "Ensembl lookup failed")
+                if not isinstance(lookup, dict):
+                    return None, "Unexpected Ensembl lookup payload"
+
+                lookup_payload = dict(lookup)
+                resolved_gene_id = _normalize_ensembl_gene_id(str(lookup_payload.get("id") or gene_id))
+                choices = extract_transcript_choices(lookup_payload)
+                preferred = choose_preferred_transcript(choices)
+                if preferred is None:
+                    return None, "No transcript choices available from Ensembl"
+
+                transcript_id = str(preferred.transcript_id or "").strip()
+                if not transcript_id:
+                    return None, "Ensembl transcript ID missing"
+
+                tx_bounds, _ = _cdna_bounds_and_snp_positions_from_transcript(
+                    lookup_payload=lookup_payload,
+                    transcript_id=transcript_id,
+                    snp_bed_path="",
+                )
+
+                c_url = build_sequence_id_url(transcript_id, "cdna")
+                c_data = fetch_json_with_transport(c_url, _http_transport)
+                if isinstance(c_data, EnsemblError):
+                    return None, str(c_data.message or "Unable to fetch Ensembl cDNA")
+                if not isinstance(c_data, dict):
+                    return None, "Unexpected Ensembl cDNA payload"
+
+                cdna_seq = clean_sequence(str(c_data.get("seq") or "")).upper()
+                if not cdna_seq:
+                    return None, f"Unable to retrieve cDNA sequence for transcript {transcript_id}"
+
+                return {
+                    "gene_id": resolved_gene_id,
+                    "transcript_id": transcript_id,
+                    "cdna_seq": cdna_seq,
+                    "bounds": list(tx_bounds),
+                }, ""
+
+            def _select_cdna_binding_pair(
+                *,
+                cdna_seq: str,
+                f_seq: str,
+                r_seq: str,
+                min_amp: int,
+                max_amp: int,
+            ) -> tuple[dict[str, int] | None, str]:
+                f_hits = _find_all_subseq(cdna_seq, f_seq)
+                r_hits = _find_all_subseq(cdna_seq, _reverse_complement(r_seq))
+                if not f_hits or not r_hits:
+                    return None, f"Primer mapping not found on cDNA (forward_hits={len(f_hits)}, reverse_hits={len(r_hits)})"
+
+                target_amp = (int(min_amp) + int(max_amp)) / 2.0
+                candidates: list[tuple[int, float, int, int, int]] = []
+                len_f = len(f_seq)
+                len_r = len(r_seq)
+                for pos_f in f_hits:
+                    for r_start in r_hits:
+                        if r_start <= (pos_f + len_f):
+                            continue
+                        realpos_r = r_start + len_r
+                        amp_size = realpos_r - pos_f
+                        in_range = (int(min_amp) <= amp_size <= int(max_amp))
+                        candidates.append((0 if in_range else 1, abs(amp_size - target_amp), amp_size, pos_f, realpos_r))
+
+                if not candidates:
+                    return None, "Mapped primer hits were incompatible in orientation/order"
+
+                candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+                _range_flag, _dist, amp_size, pos_f, realpos_r = candidates[0]
+                return {
+                    "pos_f": int(pos_f),
+                    "realpos_r": int(realpos_r),
+                    "amp_size": int(amp_size),
+                    "forward_hits": int(len(f_hits)),
+                    "reverse_hits": int(len(r_hits)),
+                }, ""
+
+            def _selected_species_slug() -> str:
+                return str(species_slug_by_label.get(species_var.get().strip(), "")).strip().lower()
+
+            def _selected_species_db() -> str:
+                slug = _selected_species_slug()
+                return _find_best_ensembl_transcriptome_db(slug) if slug else ""
+
+            def _refresh_db_hint(*_args: object) -> None:
+                db_path = _selected_species_db()
+                if db_path and Path(db_path).exists() and Path(str(db_path) + ".primerqc").exists():
+                    db_hint_var.set(f"Spec DB: {Path(db_path).name}")
+                elif db_path and Path(db_path).exists():
+                    db_hint_var.set(f"Spec DB not indexed: {Path(db_path).name}.primerqc missing")
+                else:
+                    db_hint_var.set("Spec DB not found for selected species (install in Preferences).")
+
+            def _render_test_pie(counts: dict[str, object]) -> None:
+                pie_canvas.delete("all")
+                pie_legend.configure(state="normal")
+                pie_legend.delete("1.0", "end")
+                pie_legend.tag_configure("hdr", font=("TkDefaultFont", 10, "bold"))
+                checks_total = max(0, int(counts.get("checks_total", 0)))
+                checks_passed = max(0, int(counts.get("checks_passed", 0)))
+                checks_failed = max(0, int(counts.get("checks_failed", 0)))
+                if checks_passed + checks_failed > checks_total:
+                    checks_total = checks_passed + checks_failed
+                parts: list[tuple[str, int, str]] = [
+                    ("Passed checks", checks_passed, "#59a14f"),
+                    ("Failed checks", checks_failed, "#e15759"),
+                ]
+
+                x0, y0, x1, y1 = 18, 14, 290, 250
+                start = 0.0
+                pie_total = sum(max(0, int(v)) for _, v, _ in parts)
+                nonzero_parts = [(label, value, color) for label, value, color in parts if value > 0]
+                cx = (x0 + x1) / 2.0
+                cy = (y0 + y1) / 2.0
+                rx = max(1.0, (x1 - x0) / 2.0)
+                ry = max(1.0, (y1 - y0) / 2.0)
+
+                pie_legend.insert("end", "Primer Test Outcome Pie\n", ("hdr",))
+
+                drawn_slices = 0
+                consumed = 0.0
+                for idx, (_label, value, color) in enumerate(nonzero_parts):
+                    extent = 0.0
+                    if pie_total > 0:
+                        if idx == len(nonzero_parts) - 1:
+                            extent = max(0.0, 360.0 - consumed)
+                        else:
+                            extent = 360.0 * (value / pie_total)
+                    if extent > 0.0:
+                        steps = max(6, int(extent / 3.0))
+                        pts: list[float] = [cx, cy]
+                        for step in range(steps + 1):
+                            ang = start + (extent * step / steps)
+                            rad = math.radians(ang)
+                            pts.append(cx + rx * math.cos(rad))
+                            pts.append(cy - ry * math.sin(rad))
+                        pie_canvas.create_polygon(pts, fill=color, outline="white", width=1)
+                        consumed += extent
+                        drawn_slices += 1
+                    start += extent
+
+                if checks_total <= 0 or drawn_slices == 0:
+                    pie_canvas.create_text(
+                        int((x0 + x1) / 2),
+                        int((y0 + y1) / 2),
+                        text="No checks run yet",
+                        fill="#555555",
+                    )
+                statuses_raw = counts.get("check_statuses")
+                statuses = statuses_raw if isinstance(statuses_raw, list) else []
+                if statuses:
+                    for item in statuses:
+                        if not isinstance(item, dict):
+                            continue
+                        nm = str(item.get("name", "Check"))
+                        ok = bool(item.get("passed", False))
+                        detail = str(item.get("detail", "") or "").strip()
+                        status_txt = "PASS" if ok else "FAIL"
+                        if (nm == "Primer rules") and (not ok) and detail:
+                            pie_legend.insert("end", f"- {nm}: {status_txt} ({detail})\n")
+                        else:
+                            pie_legend.insert("end", f"- {nm}: {status_txt}\n")
+                else:
+                    pie_legend.insert("end", "- No checks run yet\n")
+                pie_legend.configure(state="disabled")
+
+            def _evaluate_existing_primer_pair(
+                f_seq: str,
+                r_seq: str,
+                species_slug: str,
+                target_gene_raw: str,
+            ) -> dict[str, object]:
+                statuses: list[dict[str, object]] = []
+                notes: list[str] = []
+
+                def _add_status(name: str, passed: bool, detail: str) -> None:
+                    statuses.append(
+                        {
+                            "name": str(name),
+                            "passed": bool(passed),
+                            "detail": str(detail or ""),
+                        }
+                    )
+                    if detail:
+                        notes.append(f"{name}: {detail}")
+
+                min_len_n = max(1, _safe_int(min_len_var.get(), 20))
+                max_len_n = max(min_len_n, _safe_int(max_len_var.get(), 24))
+                min_tm_n = _safe_float(min_tm_var.get(), 58.0)
+                max_tm_n = _safe_float(max_tm_var.get(), 62.0)
+                if max_tm_n < min_tm_n:
+                    max_tm_n = min_tm_n
+                max_delta_tm_n = max(0.0, _safe_float(max_diff_var.get(), 2.0))
+                run_n = max(1, _safe_int(run_var.get(), 4))
+                repeat_n = max(2, _safe_int(repeat_var.get(), 4))
+                min_amp_n = max(1, _safe_int(min_amp_var.get(), 100))
+                max_amp_n = max(min_amp_n, _safe_int(max_amp_var.get(), 300))
+                target_gene_txt = str(target_gene_raw or "").strip()
+                target_gene_id = _normalize_ensembl_gene_id(target_gene_txt)
+                target_gene_symbol = "" if target_gene_id else target_gene_txt
+                context_needed = bool(ie_span_var.get()) or bool(ie_overlap_var.get()) or bool(ie_limit_var.get())
+                tester_ensembl_ctx: dict[str, object] | None = None
+                tester_ensembl_err = ""
+                if context_needed and target_gene_txt:
+                    tester_ensembl_ctx, tester_ensembl_err = _resolve_tester_ensembl_context(species_slug, target_gene_txt)
+                    if tester_ensembl_ctx is not None:
+                        resolved_gene_id = _normalize_ensembl_gene_id(str(tester_ensembl_ctx.get("gene_id") or ""))
+                        if resolved_gene_id:
+                            target_gene_id = resolved_gene_id
+                            target_gene_symbol = ""
+
+                len_f = len(f_seq)
+                len_r = len(r_seq)
+                tm_f = _simple_tm(f_seq)
+                tm_r = _simple_tm(r_seq)
+                gc_f = _gc_pct(f_seq)
+                gc_r = _gc_pct(r_seq)
+
+                primer_rule_issues: list[str] = []
+                if len_f < min_len_n or len_f > max_len_n or len_r < min_len_n or len_r > max_len_n:
+                    primer_rule_issues.append(
+                        f"Length required {min_len_n}-{max_len_n} bp, got F={len_f}, R={len_r}"
+                    )
+                if tm_f < min_tm_n or tm_f > max_tm_n or tm_r < min_tm_n or tm_r > max_tm_n:
+                    primer_rule_issues.append(
+                        f"Tm required {min_tm_n:.1f}-{max_tm_n:.1f}, got F={tm_f:.1f}, R={tm_r:.1f}"
+                    )
+                if abs(tm_f - tm_r) > max_delta_tm_n:
+                    primer_rule_issues.append(
+                        f"Delta Tm max {max_delta_tm_n:.1f}, got {abs(tm_f - tm_r):.1f}"
+                    )
+                if bool(exclude_gc_var.get()) and (gc_f < 40.0 or gc_f > 60.0 or gc_r < 40.0 or gc_r > 60.0):
+                    primer_rule_issues.append(
+                        f"GC required 40-60%, got F={gc_f:.1f}%, R={gc_r:.1f}%"
+                    )
+                if bool(gc_clamp_var.get()) and ((f_seq[-1] not in "GC") or (r_seq[-1] not in "GC")):
+                    primer_rule_issues.append("GC clamp failed (3' base must be G/C for both primers)")
+                _add_status(
+                    "Primer rules",
+                    passed=(len(primer_rule_issues) == 0),
+                    detail=("OK" if not primer_rule_issues else "; ".join(primer_rule_issues)),
+                )
+
+                if bool(exclude_rr_var.get()):
+                    rr_fail = _has_excluded_repeats_or_runs_local(f_seq, run_n, repeat_n) or _has_excluded_repeats_or_runs_local(
+                        r_seq, run_n, repeat_n
+                    )
+                    _add_status("Repeat/run filter", passed=(not rr_fail), detail=("OK" if not rr_fail else "Repeat/run pattern detected"))
+                else:
+                    _add_status("Repeat/run filter", passed=True, detail="Disabled")
+
+                if not context_needed:
+                    _add_status("Exon/intron context checks", passed=True, detail="Not required")
+                elif not target_gene_txt:
+                    _add_status(
+                        "Exon/intron context checks",
+                        passed=True,
+                        detail="Disabled (no Ensembl gene provided)",
+                    )
+                elif tester_ensembl_ctx is None:
+                    _add_status(
+                        "Exon/intron context checks",
+                        passed=False,
+                        detail=f"Ensembl context unavailable: {tester_ensembl_err or 'lookup failed'}",
+                    )
+                else:
+                    tx_id = str(tester_ensembl_ctx.get("transcript_id") or "")
+                    cdna_seq = clean_sequence(str(tester_ensembl_ctx.get("cdna_seq") or "")).upper()
+                    bounds_raw = tester_ensembl_ctx.get("bounds")
+                    bounds: list[int] = []
+                    if isinstance(bounds_raw, list):
+                        for b in bounds_raw:
+                            try:
+                                bi = int(b)
+                            except Exception:
+                                continue
+                            if bi > 0:
+                                bounds.append(bi)
+                    bounds = sorted(set(bounds))
+
+                    pair_map, pair_map_err = _select_cdna_binding_pair(
+                        cdna_seq=cdna_seq,
+                        f_seq=f_seq,
+                        r_seq=r_seq,
+                        min_amp=min_amp_n,
+                        max_amp=max_amp_n,
+                    )
+                    if pair_map is None:
+                        _add_status(
+                            "Exon/intron context checks",
+                            passed=False,
+                            detail=(f"Primer mapping failed on {tx_id}: {pair_map_err}" if tx_id else pair_map_err),
+                        )
+                    else:
+                        pos_f = int(pair_map.get("pos_f", 0))
+                        realpos_r = int(pair_map.get("realpos_r", 0))
+                        amp_size_ctx = int(pair_map.get("amp_size", 0))
+                        len_f_ctx = len(f_seq)
+                        len_r_ctx = len(r_seq)
+
+                        context_ok = True
+                        detail_parts: list[str] = []
+                        if tx_id:
+                            detail_parts.append(f"tx={tx_id}")
+                        detail_parts.append(f"amp={amp_size_ctx}bp")
+                        detail_parts.append(f"boundaries={len(bounds)}")
+
+                        if bool(ie_span_var.get()):
+                            span_ok = bool(bounds) and any(pos_f < b < realpos_r for b in bounds)
+                            context_ok = context_ok and span_ok
+                            detail_parts.append(f"span={'OK' if span_ok else 'FAIL'}")
+
+                        if bool(ie_overlap_var.get()):
+                            exclude_ie_n = max(0, _safe_int(exclude_ie_var.get(), 0))
+                            if exclude_ie_n <= 0:
+                                detail_parts.append("overlap=SKIP(radius=0)")
+                            else:
+                                overlap_ok = False
+                                for b in bounds:
+                                    if pos_f < (b - exclude_ie_n) and (b + exclude_ie_n) < (pos_f + len_f_ctx):
+                                        overlap_ok = True
+                                    if (realpos_r - len_r_ctx) < (b - exclude_ie_n) and (b + exclude_ie_n) < realpos_r:
+                                        overlap_ok = True
+                                context_ok = context_ok and overlap_ok
+                                detail_parts.append(f"overlap={'OK' if overlap_ok else 'FAIL'}")
+
+                        if bool(ie_limit_var.get()):
+                            lo, hi, ex5, ex3, exons = _selected_exon_window(
+                                bounds=bounds,
+                                template_len=len(cdna_seq),
+                                ex5_txt=str(ie_5p_var.get()),
+                                ex3_txt=str(ie_3p_var.get()),
+                            )
+                            f_end = pos_f + len_f_ctx
+                            r_start = realpos_r - len_r_ctx
+                            limit_ok = pos_f >= lo and f_end <= hi and r_start >= lo and realpos_r <= hi
+                            context_ok = context_ok and limit_ok
+                            detail_parts.append(
+                                f"limit={'OK' if limit_ok else 'FAIL'}[{ex5}-{ex3}/{exons}]"
+                            )
+
+                        detail_parts.append(
+                            f"hits(F={int(pair_map.get('forward_hits', 0))},R={int(pair_map.get('reverse_hits', 0))})"
+                        )
+                        _add_status(
+                            "Exon/intron context checks",
+                            passed=context_ok,
+                            detail="; ".join(part for part in detail_parts if part),
+                        )
+
+                amp_size = max(min_amp_n, min(max_amp_n, max(len_f + len_r + 1, 140)))
+                realpos_r = max(amp_size, len_f + len_r + 1)
+                seed_rows: list[list[object]] = [
+                    [
+                        f_seq,
+                        0,
+                        len_f,
+                        f"{tm_f:.2f}",
+                        r_seq,
+                        0,
+                        len_r,
+                        f"{tm_r:.2f}",
+                        realpos_r,
+                        amp_size,
+                        "0.00",
+                        0,
+                        0,
+                        "0.00",
+                    ]
+                ]
+                refined_seed_rows = [list(r) for r in seed_rows]
+                try:
+                    refined_seed_rows = _refine_rows_with_ntthal(
+                        [list(r) for r in seed_rows],
+                        primer3_path=primer3_var.get(),
+                        ntthal_path=ntthal_var.get(),
+                    )
+                except Exception as exc:
+                    notes.append(f"ntthal refine error: {exc}")
+
+                if bool(run_ntthal_cutoff_var.get()):
+                    try:
+                        rows_nt = [list(r) for r in refined_seed_rows]
+                        rows_nt, nt_note = _filter_rows_by_ntthal_ext_cutoff(
+                            rows_nt,
+                            ext_dg_cutoff=_safe_float(ntthal_ext_cutoff_var.get(), -6.0),
+                        )
+                        nt_ok = len(rows_nt) > 0
+                        _add_status(
+                            "Thermodynamics",
+                            passed=nt_ok,
+                            detail=(nt_note or ("OK" if nt_ok else "Failed")),
+                        )
+                    except Exception as exc:
+                        _add_status("Thermodynamics", passed=False, detail=f"Error: {exc}")
+                else:
+                    _add_status("Thermodynamics", passed=True, detail="Disabled")
+
+                if bool(run_mfeprimer_var.get()):
+                    try:
+                        rows_mfe = [list(r) for r in refined_seed_rows]
+                        rows_mfe, mfe_note = _filter_rows_with_mfeprimer(
+                            rows_mfe,
+                            mfeprimer_path=str(mfeprimer_var.get() or ""),
+                            dg_cutoff=_safe_float(mfe_dg_cutoff_var.get(), -2.0),
+                        )
+                        mfe_ok = len(rows_mfe) > 0
+                        _add_status(
+                            "MFEprimer dimer",
+                            passed=mfe_ok,
+                            detail=(mfe_note or ("OK" if mfe_ok else "Failed")),
+                        )
+                    except Exception as exc:
+                        _add_status("MFEprimer dimer", passed=False, detail=f"Error: {exc}")
+                else:
+                    _add_status("MFEprimer dimer", passed=True, detail="Disabled")
+
+                try:
+                    db_path = _find_best_ensembl_transcriptome_db(species_slug)
+                    db = Path(db_path) if db_path else None
+                    idx = Path(str(db) + ".primerqc") if db is not None else None
+                    if db is None or not db.exists() or idx is None or not idx.exists():
+                        _add_status(
+                            "Transcriptome specificity",
+                            passed=False,
+                            detail="Transcriptome DB missing or not indexed for selected species",
+                        )
+                    else:
+                        spec_warn = ""
+
+                        def _on_spec_param_error(msg: str) -> None:
+                            nonlocal spec_warn
+                            spec_warn = str(msg or "")
+
+                        spec_extra = resolve_spec_param_tokens(
+                            str(mfeprimer_spec_params_var.get() or ""),
+                            on_error=_on_spec_param_error,
+                        )
+                        spec_metrics: dict[str, int] = {"target_removed": 0, "snp_removed": 0}
+                        spec_rows = [list(r) for r in refined_seed_rows]
+                        spec_rows, spec_note = _filter_rows_with_mfeprimer_spec(
+                            spec_rows,
+                            mfeprimer_path=str(mfeprimer_var.get() or ""),
+                            db_fasta_path=str(db),
+                            target_gene_id=target_gene_id,
+                            target_gene_symbol=target_gene_symbol,
+                            snp_check_enabled=False,
+                            max_amplicons=1,
+                            min_amp_size=int(SPEC_OFFTARGET_MIN_AMP_SIZE_BP),
+                            max_amp_size=int(SPEC_OFFTARGET_MAX_AMP_SIZE_BP),
+                            spec_selection_mode="strict_pass",
+                            spec_remove_pct=10.0,
+                            metrics_out=spec_metrics,
+                            spec_extra_args=spec_extra,
+                        )
+                        spec_ok = len(spec_rows) > 0
+                        spec_detail_parts = [str(spec_note or "").strip()]
+                        if not target_gene_id and not target_gene_symbol:
+                            spec_detail_parts.append("No target gene provided: count-only mode")
+                        if spec_warn:
+                            spec_detail_parts.append(spec_warn)
+                        spec_detail = " | ".join(p for p in spec_detail_parts if p) or ("OK" if spec_ok else "Failed")
+                        _add_status("Transcriptome specificity", passed=spec_ok, detail=spec_detail)
+                except Exception as exc:
+                    _add_status("Transcriptome specificity", passed=False, detail=f"Error: {exc}")
+
+                checks_total = len(statuses)
+                checks_passed = sum(1 for s in statuses if bool(s.get("passed", False)))
+                checks_failed = max(0, checks_total - checks_passed)
+                overall_pass = checks_failed == 0
+                summary = f"Checks passed: {checks_passed}/{checks_total}."
+                notes_txt = " | ".join(n for n in notes if n)
+                return {
+                    "passed": bool(overall_pass),
+                    "counts": {
+                        "checks_total": checks_total,
+                        "checks_passed": checks_passed,
+                        "checks_failed": checks_failed,
+                        "check_statuses": statuses,
+                    },
+                    "notes": (summary + (" | " + notes_txt if notes_txt else "")),
+                }
+
+            def _set_busy(flag: bool) -> None:
+                busy["value"] = bool(flag)
+                state_txt = "disabled" if flag else "normal"
+                try:
+                    run_btn.configure(state=state_txt)
+                    fp_entry.configure(state=state_txt)
+                    rp_entry.configure(state=state_txt)
+                    gene_entry.configure(state=state_txt)
+                    species_box.configure(state=("disabled" if flag else "readonly"))
+                except Exception:
+                    pass
+
+            def _finish_test(payload: dict[str, object] | None, err: Exception | None) -> None:
+                _set_busy(False)
+                if err is not None:
+                    checks_summary_var.set("Checks passed: 0/1")
+                    _render_test_pie(
+                        {
+                            "checks_total": 1,
+                            "checks_passed": 0,
+                            "checks_failed": 1,
+                            "check_statuses": [{"name": "Internal run", "passed": False, "detail": str(err)}],
+                        }
+                    )
+                    return
+                data = payload if isinstance(payload, dict) else {}
+                counts = data.get("counts")
+                if isinstance(counts, dict):
+                    passed_n = max(0, int(counts.get("checks_passed", 0)))
+                    total_n = max(0, int(counts.get("checks_total", 0)))
+                    checks_summary_var.set(f"Checks passed: {passed_n}/{total_n}")
+                    _render_test_pie(counts)
+                else:
+                    checks_summary_var.set("Checks passed: -")
+
+            def _run_test() -> None:
+                if busy["value"]:
+                    return
+                f_seq = clean_sequence(fp_var.get()).upper()
+                r_seq = clean_sequence(rp_var.get()).upper()
+                if not f_seq or not r_seq:
+                    messagebox.showerror("Test existing primers", "Please enter both primer sequences.")
+                    return
+
+                species_slug = _selected_species_slug()
+                if not species_slug:
+                    messagebox.showerror("Test existing primers", "Please select a species.")
+                    return
+
+                _set_busy(True)
+                checks_summary_var.set("Checks passed: ...")
+
+                def _worker() -> None:
+                    try:
+                        payload = _evaluate_existing_primer_pair(
+                            f_seq=f_seq,
+                            r_seq=r_seq,
+                            species_slug=species_slug,
+                            target_gene_raw=gene_var.get(),
+                        )
+                        root.after(0, lambda: _finish_test(payload, None))
+                    except Exception as exc:
+                        root.after(0, lambda: _finish_test(None, exc))
+
+                threading.Thread(target=_worker, daemon=True).start()
+
+            row = 0
+            ttk.Label(t_frm, text="Forward primer").grid(row=row, column=0, sticky="w", pady=(0, 4))
+            fp_entry = ttk.Entry(t_frm, textvariable=fp_var, width=44)
+            fp_entry.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=(0, 4))
+            row += 1
+            ttk.Label(t_frm, text="Reverse primer").grid(row=row, column=0, sticky="w", pady=4)
+            rp_entry = ttk.Entry(t_frm, textvariable=rp_var, width=44)
+            rp_entry.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=4)
+            row += 1
+            ttk.Label(t_frm, text="Target gene (symbol or Ensembl ID)").grid(row=row, column=0, sticky="w", pady=4)
+            gene_entry = ttk.Entry(t_frm, textvariable=gene_var, width=44)
+            gene_entry.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=4)
+            row += 1
+            ttk.Label(t_frm, text="Species (spec DB)").grid(row=row, column=0, sticky="w", pady=4)
+            species_box = ttk.Combobox(
+                t_frm,
+                textvariable=species_var,
+                values=species_labels,
+                state="readonly",
+                width=34,
+            )
+            species_box.grid(row=row, column=1, sticky="w", padx=(8, 0), pady=4)
+            species_box.bind("<<ComboboxSelected>>", _refresh_db_hint)
+            row += 1
+            ttk.Label(t_frm, textvariable=db_hint_var, foreground="#444444").grid(
+                row=row,
+                column=0,
+                columnspan=2,
+                sticky="w",
+                pady=(0, 6),
+            )
+            row += 1
+
+            run_btn = ttk.Button(t_frm, text="Run Primer Test", command=_run_test, bootstyle="secondary")
+            run_btn.grid(row=row, column=0, sticky="w", pady=(0, 8))
+            checks_lbl = tk.Label(
+                t_frm,
+                textvariable=checks_summary_var,
+                anchor="w",
+                font=("TkDefaultFont", 10, "bold"),
+            )
+            checks_lbl.grid(row=row, column=1, sticky="w", padx=(8, 0), pady=(0, 8))
+            row += 1
+
+            pie_canvas = tk.Canvas(t_frm, width=320, height=270, bg="white")
+            pie_canvas.grid(row=row, column=0, sticky="nsew")
+            pie_legend = tk.Text(t_frm, width=52, height=15, wrap="word")
+            pie_legend.grid(row=row, column=1, sticky="nsew", padx=(10, 0))
+            row += 1
+
+            ttk.Button(t_frm, text="Close", command=t_win.destroy).grid(row=row, column=1, sticky="e", pady=(8, 0))
+            t_frm.columnconfigure(1, weight=1)
+            t_frm.rowconfigure(row - 1, weight=1)
+            _refresh_db_hint()
+            _render_test_pie({"checks_total": 0, "checks_passed": 0, "checks_failed": 0, "check_statuses": []})
+            _center_dialog_on_parent(t_win, win)
+            t_win.grab_set()
+            t_win.focus_force()
+
         win = tk.Toplevel(root)
         win.title("Preferences")
         win.transient(root)
@@ -4746,6 +5469,13 @@ def launch_gui() -> int:
             style="HowTo.TButton",
             width=17,
         ).grid(row=profile_row, column=4, sticky="w", padx=(8, 0), pady=(6, 3))
+        ttk.Button(
+            frm,
+            text="Test existing primers",
+            command=_open_existing_primers_tester,
+            bootstyle="secondary",
+            width=19,
+        ).grid(row=profile_row, column=3, sticky="w", padx=(8, 0), pady=(8, 3))
         ttk.Button(
             frm,
             text="About",
