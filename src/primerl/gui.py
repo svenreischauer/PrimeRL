@@ -2120,7 +2120,7 @@ def launch_gui() -> int:
         ttk.Entry(tm_row, textvariable=min_tm_var, width=6).pack(side="left", padx=(PAD_XS, PAD_XXS))
         ttk.Label(tm_row, text="-").pack(side="left")
         ttk.Entry(tm_row, textvariable=max_tm_var, width=6).pack(side="left", padx=(PAD_XXS, PAD_XS))
-        ttk.Label(tm_row, text="max ?Tm").pack(side="left", padx=(PAD_XXS, PAD_XS))
+        ttk.Label(tm_row, text="max \u0394Tm").pack(side="left", padx=(PAD_XXS, PAD_XS))
         ttk.Entry(tm_row, textvariable=max_diff_var, width=6).pack(side="left")
 
         len_row = ttk.Frame(parent)
