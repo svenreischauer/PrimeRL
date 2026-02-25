@@ -4,8 +4,8 @@ This folder contains build scripts for a Windows executable (`.exe`) and MSI ins
 
 ## Output layout
 
-- EXE payload: `release/PrimeRL_1.1_exe_win64_nodb/dist/PrimeRL/PrimeRL.exe`
-- MSI package: `release/PrimeRL_1.1_msi_win64/PrimeRL_1.1_win64.msi`
+- EXE payload: `release/PrimeRL_1.2_exe_win64_nodb/dist/PrimeRL/PrimeRL.exe`
+- MSI package: `release/PrimeRL_1.2_msi_win64/PrimeRL_1.2_win64.msi`
 
 ## Runtime data location
 
@@ -23,10 +23,10 @@ Override data root (advanced): set environment variable `PRIMERL_DATA_DIR`.
 1. Install PyInstaller:
    - `python -m pip install pyinstaller`
 2. Build:
-   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_exe.ps1 -Version 1.1 -Clean`
+   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_exe.ps1 -Version 1.2 -Clean`
 
 The build uses assets from the existing no-database portable bundle at:
-`release/PrimeRL_1.1_portable_win64_nodb/PrimeRL 1.1`.
+`release/PrimeRL_1.2_portable_win64_nodb/PrimeRL 1.2`.
 
 ## Build MSI (WiX CLI v6)
 
@@ -34,8 +34,8 @@ Prerequisite: WiX CLI installed.
 - `winget install --id WiXToolset.WiXCLI -e`
 
 1. Build MSI from existing EXE payload:
-   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_msi.ps1 -Version 1.1 -Clean`
+   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_msi.ps1 -Version 1.2.0 -Clean`
 2. Or build EXE first, then MSI in one call:
-   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_msi.ps1 -Version 1.1 -BuildExe -Clean`
+   - `powershell -ExecutionPolicy Bypass -File release/scripts/build_msi.ps1 -Version 1.2.0 -BuildExe -Clean`
 
 The MSI uses `WixUI_InstallDir`, so users can choose install location (default `Program Files`).

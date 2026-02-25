@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "1.1",
+    [string]$Version = "1.2",
     [switch]$Clean
 )
 
@@ -11,7 +11,14 @@ $workRoot = Join-Path $outputRoot "build"
 $distRoot = Join-Path $outputRoot "dist"
 $specRoot = $outputRoot
 
-$assetBundleRoot = Join-Path $repoRoot "release\PrimeRL_1.1_portable_win64_nodb\PrimeRL 1.1"
+$assetBundleRoot = Join-Path $repoRoot ("release\PrimeRL_{0}_portable_win64_nodb\PrimeRL {0}" -f $Version)
+if (-not (Test-Path $assetBundleRoot)) {
+    $fallbackAssetBundleRoot = Join-Path $repoRoot "release\PrimeRL_1.1_portable_win64_nodb\PrimeRL 1.1"
+    if (Test-Path $fallbackAssetBundleRoot) {
+        Write-Host "Version-matched portable asset bundle not found for $Version. Falling back to 1.1 portable assets."
+        $assetBundleRoot = $fallbackAssetBundleRoot
+    }
+}
 $assetRoot = Join-Path $assetBundleRoot "PrimeRL"
 $thirdPartyRoot = Join-Path $assetBundleRoot "third_party"
 
