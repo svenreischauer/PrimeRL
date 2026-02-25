@@ -2232,7 +2232,7 @@ def launch_gui() -> int:
     spec_selection_mode_var = tk.StringVar(value="strict_pass")
     spec_remove_pct_var = tk.StringVar(value="10")
     run_ntthal_cutoff_var = tk.IntVar(value=1)
-    ntthal_ext_cutoff_var = tk.StringVar(value="-6.0")
+    ntthal_ext_cutoff_var = tk.StringVar(value="-3.5")
     max_pairs_var = tk.StringVar(value="100")
     gene_name_var = tk.StringVar(value="")
     max_genomic_view_bases_var = tk.StringVar(
@@ -2503,7 +2503,7 @@ def launch_gui() -> int:
         if len(full) > limit:
             shown = (
                 full[:limit]
-                + f"\n...[truncated: showing first {limit:,} of {len(full):,} bases; adjust in Preferences]..."
+                + f"\n...[truncated: showing first {limit:,} of {len(full):,} bases; adjust in Options]..."
             )
         gen_text.delete("1.0", "end")
         gen_text.insert("1.0", shown)
@@ -4921,7 +4921,7 @@ def launch_gui() -> int:
                 elif db_path and Path(db_path).exists():
                     db_hint_var.set(f"Spec DB not indexed: {Path(db_path).name}.primerqc missing")
                 else:
-                    db_hint_var.set("Spec DB not found for selected species (install in Preferences).")
+                    db_hint_var.set("Spec DB not found for selected species (install in Options).")
 
             def _render_test_pie(counts: dict[str, object]) -> None:
                 pie_canvas.delete("all")
@@ -5215,7 +5215,7 @@ def launch_gui() -> int:
                         rows_nt = [list(r) for r in refined_seed_rows]
                         rows_nt, nt_note = _filter_rows_by_ntthal_ext_cutoff(
                             rows_nt,
-                            ext_dg_cutoff=_safe_float(ntthal_ext_cutoff_var.get(), -6.0),
+                            ext_dg_cutoff=_safe_float(ntthal_ext_cutoff_var.get(), -3.5),
                         )
                         nt_ok = len(rows_nt) > 0
                         _add_status(
@@ -5439,7 +5439,7 @@ def launch_gui() -> int:
             t_win.focus_force()
 
         win = tk.Toplevel(root)
-        win.title("Preferences")
+        win.title("Options")
         win.transient(root)
         frm = ttk.Frame(win, padding=10)
         frm.pack(fill="both", expand=True)
@@ -5475,7 +5475,7 @@ def launch_gui() -> int:
             command=_open_existing_primers_tester,
             bootstyle="secondary",
             width=19,
-        ).grid(row=profile_row, column=3, sticky="w", padx=(8, 0), pady=(8, 3))
+        ).grid(row=profile_row + 1, column=4, columnspan=2, sticky="w", padx=(8, 0), pady=(2, 6))
         ttk.Button(
             frm,
             text="About",
@@ -5488,7 +5488,7 @@ def launch_gui() -> int:
             lambda _evt: _apply_binary_profile(binary_profile_var.get(), notify=True, persist=True),
         )
 
-        rr = profile_row + 1
+        rr = profile_row + 2
         ttk.Label(frm, text="Max genomic view bases").grid(row=rr, column=0, sticky="w", pady=2)
         ttk.Entry(frm, textvariable=max_genomic_view_bases_var, width=12).grid(row=rr, column=1, sticky="w", padx=6, pady=2)
 
@@ -5630,7 +5630,7 @@ def launch_gui() -> int:
         retrieve_btn.grid(row=0, column=0, columnspan=2, padx=0, pady=(0, PAD_S // 2), sticky="ew")
         find_btn = ttk.Button(btns, text="Find Primers", command=_run_design, style="Primary.TButton", bootstyle="success")
         find_btn.grid(row=1, column=0, columnspan=2, padx=0, pady=(PAD_S // 2, PAD_S // 2), sticky="ew")
-        prefs_btn = ttk.Button(btns, text="Preferences", command=_open_preferences, bootstyle="secondary")
+        prefs_btn = ttk.Button(btns, text="Options", command=_open_preferences, bootstyle="secondary")
         prefs_btn.grid(row=2, column=0, padx=(0, PAD_S // 2), pady=(PAD_S // 2, PAD_S // 2), sticky="ew")
         runtime_pie_btn = ttk.Button(btns, text="Runtime Pie", command=_show_runtime_pie, bootstyle="secondary")
         runtime_pie_btn.grid(row=2, column=1, padx=(PAD_S // 2, 0), pady=(PAD_S // 2, PAD_S // 2), sticky="ew")
