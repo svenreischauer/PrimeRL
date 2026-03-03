@@ -1,0 +1,50 @@
+{
+  "platform": "linux",
+  "arch": "x86_64",
+  "compiler_policy": {
+    "cc": "clang",
+    "cflags": "-O3 -march=x86-64-v3 -mtune=generic -fomit-frame-pointer -DNDEBUG"
+  },
+  "tools": [
+    {
+      "name": "primer3_core",
+      "source": "primer3",
+      "version": "2.6.1",
+      "source_url": "",
+      "sha256": "",
+      "license_notice": "third_party/licenses/primer3/LICENSE.GPL-2.0.txt"
+    },
+    {
+      "name": "ntthal",
+      "source": "primer3",
+      "version": "2.6.1",
+      "source_url": "",
+      "sha256": "",
+      "license_notice": "third_party/licenses/primer3/LICENSE.GPL-2.0.txt"
+    },
+    {
+      "name": "oligotm",
+      "source": "primer3",
+      "version": "2.6.1",
+      "source_url": "",
+      "sha256": "",
+      "license_notice": "third_party/licenses/primer3/LICENSE.GPL-2.0.txt"
+    },
+    {
+      "name": "spidey",
+      "source": "ncbi",
+      "version": "6.1.20170106+dfsg2",
+      "source_url": "https://sources.debian.org/src/ncbi-tools6/6.1.20170106+dfsg2-2/",
+      "sha256": "",
+      "license_notice": "third_party/licenses/spidey/NCBI_NOTICE.txt"
+    },
+    {
+      "name": "mfeprimer",
+      "source": "mfeprimer",
+      "version": "4.2.4",
+      "source_url": "https://github.com/quwubin/MFEprimer-3.0/releases/download/v4.2.4/mfeprimer-4.2.4-linux-amd64.gz",
+      "sha256": "533ea292958ecb0d638dc4c34f664f6e8314e1e12dca2e323b3d6ae0f69968c0",
+      "license_notice": "third_party/licenses/mfeprimer/TERMS_NOTE.txt"
+    }
+  ]
+}

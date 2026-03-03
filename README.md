@@ -45,6 +45,14 @@ Build macOS `.app` + signing:
 ```
 See: `release/README_BUILD_MACOS.md`
 
+Build Linux app + `.deb`:
+```bash
+./release/scripts/prepare_linux_tools.sh
+./release/scripts/build_linux_app.sh --version 1.2 --clean
+./release/scripts/build_deb.sh --version 1.2.0 --clean --app-dir release/PrimeRL_1.2_app_linux_x86_64_nodb/dist/PrimeRL
+```
+See: `release/README_BUILD_LINUX.md`
+
 ## macOS Apple Silicon
 Quick launcher:
 ```bash

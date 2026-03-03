@@ -510,6 +510,9 @@ def _run_spidey_alignment(
     print_alignment: int,
     large_intron: bool,
 ) -> tuple[bool, str, str]:
+    spidey_exec = Path(spidey_path)
+    spidey_lib_dir = spidey_exec.parent / "lib"
+
     with tempfile.TemporaryDirectory() as td:
         dna_tmp = Path(td) / "dna.tmp.fasta"
         mrna_tmp = Path(td) / "mrna.tmp.fasta"
@@ -525,12 +528,19 @@ def _run_spidey_alignment(
         )
 
         def _transport(cmd: list[str]) -> tuple[int, str]:
+            env = dict(os.environ)
+            if spidey_lib_dir.exists() and spidey_lib_dir.is_dir():
+                old_ld = str(env.get("LD_LIBRARY_PATH") or "").strip()
+                env["LD_LIBRARY_PATH"] = (
+                    f"{spidey_lib_dir}:{old_ld}" if old_ld else str(spidey_lib_dir)
+                )
             proc = subprocess_run(
                 cmd,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=env,
             )
             out = (proc.stdout or "")
             if proc.stderr:
@@ -2439,6 +2449,7 @@ def launch_gui() -> int:
         "spec_passed": set(),
         "spec_pass_keys": set(),
         "spec_db_available": True,
+        "mfeprimer_available": bool(str(defaults["mfeprimer"]).strip()) and Path(str(defaults["mfeprimer"])).is_file(),
         "result_sort_col": "pd",
         "result_sort_desc": True,
         "genomic_seq_full": "",
@@ -2691,7 +2702,8 @@ def launch_gui() -> int:
     def _update_spec_toggle_availability(*_args: object) -> None:
         has_target_id = bool(_normalize_ensembl_gene_id(target_ensembl_gene_id_var.get()))
         has_spec_db = bool(state.get("spec_db_available", True))
-        if has_target_id and has_spec_db:
+        has_mfeprimer = bool(state.get("mfeprimer_available", True))
+        if has_target_id and has_spec_db and has_mfeprimer:
             spec_top50_chk.configure(state="normal")
             _update_spec_sensitivity_control()
             if spec_top50_forced_off["value"]:
@@ -3557,6 +3569,45 @@ def launch_gui() -> int:
         _set_status(msg)
         if bool(state.get("run_status_popup_active")):
             _update_run_status_popup(msg)
+
+    def _path_is_file(path: str) -> bool:
+        txt = str(path or "").strip()
+        return bool(txt) and Path(txt).is_file()
+
+    def _startup_toolchain_checks() -> int:
+        warnings: list[str] = []
+        primer3_ok = _path_is_file(primer3_var.get())
+        spidey_ok = _path_is_file(spidey_var.get())
+        mfe_ok = _path_is_file(mfeprimer_var.get())
+        state["mfeprimer_available"] = mfe_ok
+
+        if not primer3_ok:
+            msg = (
+                "Primer3 executable not found. PrimeRL requires primer3_core in tools/bin "
+                "or configured on PATH."
+            )
+            if getattr(sys, "frozen", False):
+                messagebox.showerror("PrimeRL startup error", msg)
+                return 2
+            warnings.append(msg)
+
+        if not mfe_ok:
+            run_mfeprimer_var.set(0)
+            if bool(spec_top50_var.get()):
+                spec_top50_var.set(0)
+            warnings.append(
+                "MFEprimer executable not found; MFE dimer and transcriptome specificity checks are disabled."
+            )
+
+        if not spidey_ok:
+            warnings.append(
+                "spidey executable not found; automatic boundary detection without Ensembl context will fail."
+            )
+
+        _update_spec_toggle_availability()
+        if warnings:
+            _set_status(" | ".join(warnings))
+        return 0
 
     def _set_status(msg: str) -> None:
         state["full_status_text"] = str(msg or "")
@@ -4567,144 +4618,278 @@ def launch_gui() -> int:
         _set_status("Retrieving sequence from Ensembl ...")
         root.update_idletasks()
 
-        try:
-            lookup_url = build_lookup_symbol_url(species, gene)
-            lookup = fetch_json_with_transport(lookup_url, _http_transport)
-            if isinstance(lookup, EnsemblNoGeneFound):
-                messagebox.showerror("Ensembl", "No gene found under this name.")
-                _set_status("No gene found.")
+        def _ui_after(func: Callable[[], None]) -> None:
+            try:
+                root.after(0, func)
+            except Exception:
+                pass
+
+        def _set_retrieve_status_async(msg: str) -> None:
+            _ui_after(lambda m=str(msg): _set_run_status(m))
+
+        def _end_retrieve_busy() -> None:
+            state["design_busy"] = False
+            _set_busy_controls(True)
+            _close_run_status_popup()
+
+        def _fail_retrieve(exc: Exception) -> None:
+            _end_retrieve_busy()
+            messagebox.showerror("Ensembl", str(exc))
+            _set_status(f"Ensembl error: {exc}")
+
+        def _on_stage2_done(result: dict[str, object] | None, err: Exception | None) -> None:
+            if err is not None:
+                _fail_retrieve(err)
                 return
-            if isinstance(lookup, EnsemblError):
-                raise RuntimeError(lookup.message)
-            gene_id = _normalize_ensembl_gene_id(str(dict(lookup).get("id") or ""))
-            if not gene_id:
-                raise RuntimeError("Ensembl response missing stable gene ID.")
-            state["ensembl_gene_id"] = gene_id
-            target_ensembl_gene_id_var.set(gene_id)
-            auto_db_msg = _auto_select_transcriptome_db_for_target(
-                gene_id=gene_id,
-                species_hint=species,
-            )
-            target_slug = _infer_species_slug_from_gene_id(gene_id) or str(species or "").strip().lower()
-            target_db_path = _find_best_ensembl_transcriptome_db(target_slug) if target_slug else ""
-            if not target_db_path and target_slug:
-                _set_spec_db_available(False)
-                prompt_msg = (
-                    f"No matching transcriptome DB for {target_slug} is installed.\n\n"
-                    "NOTE: This is only necessary once and important for full functionality!\n"
-                    "Dependent on your hardware this might take between 3 to 15 min.\n\n"
-                    "Download and index now for specificity analysis?"
-                )
-                install_now = bool(messagebox.askyesno("Missing transcriptome DB", prompt_msg))
-                if install_now:
-                    _set_status(f"Installing {target_slug} transcriptome DB for specificity analysis ...")
+            payload = dict(result or {})
+            try:
+                g_seq = str(payload.get("g_seq") or "")
+                c_seq = str(payload.get("c_seq") or "")
+                transcript_id = str(payload.get("transcript_id") or "")
+                gene_id = str(payload.get("gene_id") or "")
+                tx_bounds = [int(b) for b in (payload.get("tx_bounds") or [])]
+                tx_snp_pos = [int(p) for p in (payload.get("tx_snp_pos") or [])]
+                snp_bed_path = str(payload.get("snp_bed_path") or "")
+                snp_count = int(payload.get("snp_count") or 0)
+                snp_note = str(payload.get("snp_note") or "")
+                auto_db_msg = str(payload.get("auto_db_msg") or "")
 
-                    def _on_install_ok(fasta_path: str) -> None:
-                        _set_spec_db_available(True)
-                        _set_status(
-                            f"Installed transcriptome DB for {target_slug}: "
-                            f"{Path(str(fasta_path)).name if fasta_path else ''}. Spec testing re-enabled."
+                if not g_seq or not c_seq:
+                    raise RuntimeError(f"Unable to retrieve genomic/cDNA sequence for {transcript_id}")
+
+                _set_genomic_sequence_display(g_seq)
+                mrna_text.delete("1.0", "end")
+                mrna_text.insert("1.0", c_seq)
+                state["rows_after_ntthal"] = None
+                state["parsed_primer3"] = None
+                state["design_stats"] = None
+                state["spidey_meta"] = {"used": False, "boundaries": []}
+                state["spidey_output"] = ""
+                state["template_len"] = len(c_seq)
+                state["bounds"] = list(tx_bounds)
+                state["snp_cdna_positions"] = list(tx_snp_pos)
+                state["orf"] = _find_longest_orf(c_seq)
+                state["spec_passed"] = set()
+                _render_rows([])
+
+                msg = f"{gene} ({species}) retrieved successfully: {transcript_id} [{gene_id}]"
+                if snp_bed_path:
+                    msg += f" | SNP BED temp loaded ({snp_count})"
+                else:
+                    msg += " | SNP BED unavailable; SNP check will be skipped."
+                if auto_db_msg:
+                    msg += f" | {auto_db_msg}"
+                if snp_note and snp_note != "ok":
+                    msg += f" ({snp_note})"
+                _set_status(msg)
+            except Exception as exc:
+                messagebox.showerror("Ensembl", str(exc))
+                _set_status(f"Ensembl error: {exc}")
+            finally:
+                _end_retrieve_busy()
+
+        def _start_stage2(
+            *,
+            lookup_payload: dict[str, object],
+            transcript_id: str,
+            gene_id: str,
+            auto_db_msg: str,
+            snp_bed_path: str,
+            snp_count: int,
+            snp_note: str,
+        ) -> None:
+            _set_run_status("Downloading genomic and cDNA sequence from Ensembl ...")
+
+            def _worker_stage2() -> None:
+                try:
+                    _set_retrieve_status_async("Mapping transcript bounds and SNP positions ...")
+                    tx_bounds, tx_snp_pos = _cdna_bounds_and_snp_positions_from_transcript(
+                        lookup_payload=lookup_payload,
+                        transcript_id=transcript_id,
+                        snp_bed_path=snp_bed_path,
+                    )
+
+                    _set_retrieve_status_async("Downloading genomic and cDNA sequence from Ensembl ...")
+                    g_url = build_sequence_id_url(transcript_id, "genomic")
+                    c_url = build_sequence_id_url(transcript_id, "cdna")
+                    g_data = fetch_json_with_transport(g_url, _http_transport)
+                    c_data = fetch_json_with_transport(c_url, _http_transport)
+                    if isinstance(g_data, EnsemblError) or isinstance(c_data, EnsemblError):
+                        msg = (g_data.message if isinstance(g_data, EnsemblError) else "") + " " + (
+                            c_data.message if isinstance(c_data, EnsemblError) else ""
                         )
+                        raise RuntimeError(msg.strip())
+                    g_seq = str(dict(g_data).get("seq") or "")
+                    c_seq = str(dict(c_data).get("seq") or "")
+                    if not g_seq or not c_seq:
+                        raise RuntimeError(f"Unable to retrieve genomic/cDNA sequence for {transcript_id}")
 
-                    def _on_install_cancel_or_fail(err: str) -> None:
+                    _ui_after(
+                        lambda: _on_stage2_done(
+                            {
+                                "g_seq": g_seq,
+                                "c_seq": c_seq,
+                                "transcript_id": transcript_id,
+                                "gene_id": gene_id,
+                                "tx_bounds": list(tx_bounds),
+                                "tx_snp_pos": list(tx_snp_pos),
+                                "snp_bed_path": snp_bed_path,
+                                "snp_count": int(snp_count),
+                                "snp_note": snp_note,
+                                "auto_db_msg": auto_db_msg,
+                            },
+                            None,
+                        )
+                    )
+                except Exception as exc:
+                    _ui_after(lambda e=exc: _on_stage2_done(None, e))
+
+            threading.Thread(target=_worker_stage2, name="ensembl-retrieve-stage2", daemon=True).start()
+
+        def _on_stage1_done(result: dict[str, object] | None, err: Exception | None) -> None:
+            if err is not None:
+                _fail_retrieve(err)
+                return
+
+            payload = dict(result or {})
+            try:
+                lookup_payload = dict(payload.get("lookup_payload") or {})
+                gene_id = str(payload.get("gene_id") or "")
+                snp_bed_path = str(payload.get("snp_bed_path") or "")
+                snp_count = int(payload.get("snp_count") or 0)
+                snp_note = str(payload.get("snp_note") or "")
+                choices = list(payload.get("choices") or [])
+
+                if not gene_id:
+                    raise RuntimeError("Ensembl response missing stable gene ID.")
+                if not choices:
+                    raise RuntimeError(f"No transcripts returned for {gene}")
+
+                # Temporary SNP BED is overwritten for each retrieved gene.
+                state["current_snp_bed"] = snp_bed_path
+                state["ensembl_gene_id"] = gene_id
+                target_ensembl_gene_id_var.set(gene_id)
+
+                auto_db_msg = _auto_select_transcriptome_db_for_target(
+                    gene_id=gene_id,
+                    species_hint=species,
+                )
+                target_slug = _infer_species_slug_from_gene_id(gene_id) or str(species or "").strip().lower()
+                target_db_path = _find_best_ensembl_transcriptome_db(target_slug) if target_slug else ""
+                if not target_db_path and target_slug:
+                    _set_spec_db_available(False)
+                    prompt_msg = (
+                        f"No matching transcriptome DB for {target_slug} is installed.\n\n"
+                        "NOTE: This is only necessary once and important for full functionality!\n"
+                        "Dependent on your hardware this might take between 3 to 15 min.\n\n"
+                        "Download and index now for specificity analysis?"
+                    )
+                    install_now = bool(messagebox.askyesno("Missing transcriptome DB", prompt_msg))
+                    if install_now:
+                        _set_status(f"Installing {target_slug} transcriptome DB for specificity analysis ...")
+
+                        def _on_install_ok(fasta_path: str) -> None:
+                            _set_spec_db_available(True)
+                            _set_status(
+                                f"Installed transcriptome DB for {target_slug}: "
+                                f"{Path(str(fasta_path)).name if fasta_path else ''}. Spec testing re-enabled."
+                            )
+
+                        def _on_install_cancel_or_fail(err_txt: str) -> None:
+                            run_spec = bool(spec_top50_var.get())
+                            spec_top50_var.set(0)
+                            _set_spec_db_available(False)
+                            if str(err_txt) == "__CANCELLED__":
+                                _set_status("Transcriptome DB install canceled. Spec testing disabled.")
+                            else:
+                                _set_status(f"Transcriptome DB install failed ({err_txt}). Spec testing disabled.")
+                            if run_spec:
+                                spec_top50_forced_off["value"] = True
+
+                        _install_ensembl_db_for_species_async(
+                            species_slug=target_slug,
+                            on_success=_on_install_ok,
+                            on_cancel_or_fail=_on_install_cancel_or_fail,
+                            show_cancel_popup=True,
+                        )
+                    else:
                         run_spec = bool(spec_top50_var.get())
                         spec_top50_var.set(0)
                         _set_spec_db_available(False)
-                        if str(err) == "__CANCELLED__":
-                            _set_status("Transcriptome DB install canceled. Spec testing disabled.")
-                        else:
-                            _set_status(f"Transcriptome DB install failed ({err}). Spec testing disabled.")
                         if run_spec:
                             spec_top50_forced_off["value"] = True
-
-                    _install_ensembl_db_for_species_async(
-                        species_slug=target_slug,
-                        on_success=_on_install_ok,
-                        on_cancel_or_fail=_on_install_cancel_or_fail,
-                        show_cancel_popup=True,
-                    )
+                        _set_status("No matching transcriptome DB installed. Spec testing disabled.")
                 else:
-                    run_spec = bool(spec_top50_var.get())
-                    spec_top50_var.set(0)
-                    _set_spec_db_available(False)
-                    if run_spec:
-                        spec_top50_forced_off["value"] = True
-                    _set_status("No matching transcriptome DB installed. Spec testing disabled.")
-            else:
-                _set_spec_db_available(True)
-            snp_bed_path, snp_count, snp_note = _fetch_ensembl_variation_bed_temp(
-                gene_id=gene_id,
-                transport=_http_transport,
-            )
-            # Temporary SNP BED is overwritten for each retrieved gene.
-            state["current_snp_bed"] = snp_bed_path
+                    _set_spec_db_available(True)
 
-            choices = extract_transcript_choices(dict(lookup))
-            if not choices:
-                raise RuntimeError(f"No transcripts returned for {gene}")
-            preferred = choose_preferred_transcript(choices)
-            if preferred is None:
-                raise RuntimeError(f"No valid transcript IDs returned for {gene}")
-
-            chosen_label = preferred.display_label
-            if len(choices) > 1:
-                pick = _choose_transcript_dialog(root, choices, preferred.display_label)
-                if not pick:
-                    _set_status("Ensembl transcript selection canceled.")
-                    return
-                chosen_label = pick
-
-            by_label = {c.display_label: c.transcript_id for c in choices}
-            transcript_id = by_label.get(chosen_label, preferred.transcript_id)
-            tx_bounds, tx_snp_pos = _cdna_bounds_and_snp_positions_from_transcript(
-                lookup_payload=dict(lookup),
-                transcript_id=transcript_id,
-                snp_bed_path=snp_bed_path,
-            )
-
-            # qPCR page behavior like v036: always fetch both genomic and cDNA.
-            g_url = build_sequence_id_url(transcript_id, "genomic")
-            c_url = build_sequence_id_url(transcript_id, "cdna")
-            g_data = fetch_json_with_transport(g_url, _http_transport)
-            c_data = fetch_json_with_transport(c_url, _http_transport)
-            if isinstance(g_data, EnsemblError) or isinstance(c_data, EnsemblError):
-                msg = (g_data.message if isinstance(g_data, EnsemblError) else "") + " " + (
-                    c_data.message if isinstance(c_data, EnsemblError) else ""
+                preferred = choose_preferred_transcript(choices)
+                if preferred is None:
+                    raise RuntimeError(f"No valid transcript IDs returned for {gene}")
+                chosen_label = preferred.display_label
+                if len(choices) > 1:
+                    pick = _choose_transcript_dialog(root, choices, preferred.display_label)
+                    if not pick:
+                        _end_retrieve_busy()
+                        _set_status("Ensembl transcript selection canceled.")
+                        return
+                    chosen_label = pick
+                by_label = {c.display_label: c.transcript_id for c in choices}
+                transcript_id = by_label.get(chosen_label, preferred.transcript_id)
+                _start_stage2(
+                    lookup_payload=lookup_payload,
+                    transcript_id=str(transcript_id),
+                    gene_id=gene_id,
+                    auto_db_msg=auto_db_msg,
+                    snp_bed_path=snp_bed_path,
+                    snp_count=snp_count,
+                    snp_note=snp_note,
                 )
-                raise RuntimeError(msg.strip())
+            except Exception as exc:
+                _fail_retrieve(exc)
 
-            g_seq = str(dict(g_data).get("seq") or "")
-            c_seq = str(dict(c_data).get("seq") or "")
-            if not g_seq or not c_seq:
-                raise RuntimeError(f"Unable to retrieve genomic/cDNA sequence for {transcript_id}")
+        def _worker_stage1() -> None:
+            try:
+                _set_retrieve_status_async("Querying Ensembl gene lookup ...")
+                lookup_url = build_lookup_symbol_url(species, gene)
+                lookup = fetch_json_with_transport(lookup_url, _http_transport)
+                if isinstance(lookup, EnsemblNoGeneFound):
+                    raise RuntimeError("No gene found under this name.")
+                if isinstance(lookup, EnsemblError):
+                    raise RuntimeError(lookup.message)
+                lookup_payload = dict(lookup)
+                gene_id = _normalize_ensembl_gene_id(str(lookup_payload.get("id") or ""))
+                if not gene_id:
+                    raise RuntimeError("Ensembl response missing stable gene ID.")
 
-            _set_genomic_sequence_display(g_seq)
-            mrna_text.delete("1.0", "end")
-            mrna_text.insert("1.0", c_seq)
-            state["rows_after_ntthal"] = None
-            state["parsed_primer3"] = None
-            state["design_stats"] = None
-            state["spidey_meta"] = {"used": False, "boundaries": []}
-            state["spidey_output"] = ""
-            state["template_len"] = len(c_seq)
-            state["bounds"] = list(tx_bounds)
-            state["snp_cdna_positions"] = list(tx_snp_pos)
-            state["orf"] = _find_longest_orf(c_seq)
-            state["spec_passed"] = set()
-            _render_rows([])
-            msg = f"{gene} ({species}) retrieved successfully: {transcript_id} [{gene_id}]"
-            if snp_bed_path:
-                msg += f" | SNP BED temp loaded ({snp_count})"
-            else:
-                msg += " | SNP BED unavailable; SNP check will be skipped."
-            if auto_db_msg:
-                msg += f" | {auto_db_msg}"
-            if snp_note and snp_note != "ok":
-                msg += f" ({snp_note})"
-            _set_status(msg)
-        except Exception as exc:
-            messagebox.showerror("Ensembl", str(exc))
-            _set_status(f"Ensembl error: {exc}")
+                _set_retrieve_status_async("Fetching SNP annotation ...")
+                snp_bed_path, snp_count, snp_note = _fetch_ensembl_variation_bed_temp(
+                    gene_id=gene_id,
+                    transport=_http_transport,
+                )
+                choices = extract_transcript_choices(lookup_payload)
+                if not choices:
+                    raise RuntimeError(f"No transcripts returned for {gene}")
+
+                _ui_after(
+                    lambda: _on_stage1_done(
+                        {
+                            "lookup_payload": lookup_payload,
+                            "gene_id": gene_id,
+                            "snp_bed_path": snp_bed_path,
+                            "snp_count": int(snp_count),
+                            "snp_note": snp_note,
+                            "choices": choices,
+                        },
+                        None,
+                    )
+                )
+            except Exception as exc:
+                _ui_after(lambda e=exc: _on_stage1_done(None, e))
+
+        state["design_busy"] = True
+        _set_busy_controls(False)
+        _ensure_run_status_popup("Retrieving sequence from Ensembl ...")
+        threading.Thread(target=_worker_stage1, name="ensembl-retrieve-stage1", daemon=True).start()
 
     def _open_local_doc_page(title: str, filename: str) -> None:
         candidates = [
@@ -5712,6 +5897,10 @@ def launch_gui() -> int:
     target_ensembl_gene_id_var.trace_add("write", _update_spec_toggle_availability)
     _update_spec_toggle_availability()
     _load_default_sequences()
+    startup_code = _startup_toolchain_checks()
+    if startup_code != 0:
+        root.destroy()
+        return startup_code
     _autosize_window()
 
     _safe_draw_cdna_map()

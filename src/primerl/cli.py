@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Sequence
@@ -53,6 +54,9 @@ def _run_spidey_alignment(
     print_alignment: int,
     large_intron: bool,
 ) -> tuple[bool, str, str]:
+    spidey_exec = Path(spidey_path)
+    spidey_lib_dir = spidey_exec.parent / "lib"
+
     with tempfile.TemporaryDirectory() as td:
         dna_tmp = Path(td) / "dna.tmp.fasta"
         mrna_tmp = Path(td) / "mrna.tmp.fasta"
@@ -68,12 +72,19 @@ def _run_spidey_alignment(
         )
 
         def _transport(cmd: list[str]) -> tuple[int, str]:
+            env = dict(os.environ)
+            if spidey_lib_dir.exists() and spidey_lib_dir.is_dir():
+                old_ld = str(env.get("LD_LIBRARY_PATH") or "").strip()
+                env["LD_LIBRARY_PATH"] = (
+                    f"{spidey_lib_dir}:{old_ld}" if old_ld else str(spidey_lib_dir)
+                )
             proc = subprocess_run(
                 cmd,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=env,
             )
             out = (proc.stdout or "")
             if proc.stderr:
@@ -459,4 +470,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
