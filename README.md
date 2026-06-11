@@ -3,6 +3,16 @@
 PrimeRL is a qPCR primer design workspace with a Tkinter/ttkbootstrap GUI and
 local tooling for primer design and specificity checks.
 
+## Key Upstream Projects
+- [Primer3](https://github.com/primer3-org/primer3) - primer design engine and thermodynamic utilities used by PrimeRL
+- [MFEprimer](https://github.com/quwubin/MFEprimer-3.0) - primer dimer and transcriptome specificity screening
+- [Ensembl](https://www.ensembl.org/) - transcript, genomic, and transcriptome reference source
+- [Spidey / NCBI](https://www.ncbi.nlm.nih.gov/spidey/) - exon/intron alignment support for transcript-aware primer placement
+- [OpenPyXL](https://pypi.org/project/openpyxl/) - Excel export support
+
+Third-party notices and bundled license details are documented in
+[`docs/THIRD_PARTY_NOTICES.md`](C:\Users\svenr\Documents\HiDrive\Cortex Workspace\PrimeRL\docs\THIRD_PARTY_NOTICES.md).
+
 ## Project Layout
 - Application code: `src/primerl`
 - GUI launcher: `run_gui.py`
