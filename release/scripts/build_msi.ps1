@@ -94,7 +94,7 @@ $productXml = @'
            Language="1033"
            Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of PrimeRL is already installed." />
-    <MediaTemplate CompressionLevel="high" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
     <Icon Id="PrimeRLIcon" SourceFile="$(var.SourceDir)\PrimeRL.exe" />
     <Property Id="ARPPRODUCTICON" Value="PrimeRLIcon" />
