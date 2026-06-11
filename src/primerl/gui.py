@@ -4020,6 +4020,13 @@ def launch_gui() -> int:
 
         _close_run_status_popup()
         _set_status(msg)
+        if show_dialog and final_returned <= 0 and (not bool(payload.get("spec_no_target_specificity", False))):
+            messagebox.showwarning(
+                "No primer pairs found",
+                "PrimeRL returned 0 primer pairs.\n\n"
+                "Your filter options may be too strict. Try broadening the length/Tm limits, "
+                "reducing exclusion filters, or increasing the number of returned pairs.",
+            )
         if show_dialog and bool(payload.get("spec_no_target_specificity", False)):
             tested_n = max(0, int(payload.get("spec_tested_count", 0)))
             messagebox.showwarning("Specificity check", "No Pair passed the specificity test! Close paralog? Try focusing on UTRs")
