@@ -1596,6 +1596,16 @@ def _http_get_text(url: str, timeout_sec: int = 60) -> str:
         try:
             with urlopen(req, timeout=t_sec) as r:
                 return r.read().decode("utf-8", errors="replace")
+        except HTTPError as exc:
+            body = ""
+            try:
+                body = exc.read().decode("utf-8", errors="replace").strip()
+            except Exception:
+                body = ""
+            msg = f"HTTP {exc.code} {exc.reason} for {url}"
+            if body:
+                msg = f"{msg}: {body[:300]}"
+            last_err = RuntimeError(msg)
         except Exception as exc:
             last_err = exc
             time.sleep(0.2)
@@ -1640,31 +1650,22 @@ def _resolve_ensembl_cdna_download(species_slug: str) -> tuple[str, str]:
     if not slug:
         raise ValueError("Species slug is required.")
 
-    base_urls = [
-        f"https://ftp.ensembl.org/pub/current/fasta/{slug}/cdna/",
-        f"https://ftp.ensembl.org/pub/current_fasta/{slug}/cdna/",
-    ]
-    last_err = ""
+    base_url = f"https://ftp.ensembl.org/pub/current/fasta/{slug}/cdna/"
+    try:
+        listing = _http_get_text(base_url, timeout_sec=60)
+    except Exception as exc:
+        raise RuntimeError(f"Unable to access Ensembl transcriptome listing for '{slug}': {exc}") from exc
 
-    for base_url in base_urls:
-        try:
-            listing = _http_get_text(base_url, timeout_sec=60)
-        except Exception as exc:
-            last_err = str(exc)
-            continue
+    matches = re.findall(r'href=["\']([^"\']+\.cdna\.all\.fa\.gz)["\']', listing, flags=re.IGNORECASE)
+    if not matches:
+        # Fallback for plain index listings where links may not be quoted as expected.
+        matches = re.findall(r'([A-Za-z0-9_.-]+\.cdna\.all\.fa\.gz)', listing, flags=re.IGNORECASE)
+    candidates = sorted(set(Path(m).name for m in matches))
+    if not candidates:
+        raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}' at {base_url}")
 
-        matches = re.findall(r'href=["\']([^"\']+\.cdna\.all\.fa\.gz)["\']', listing, flags=re.IGNORECASE)
-        if not matches:
-            # Fallback for plain index listings where links may not be quoted as expected.
-            matches = re.findall(r'([A-Za-z0-9_.-]+\.cdna\.all\.fa\.gz)', listing, flags=re.IGNORECASE)
-        candidates = sorted(set(Path(m).name for m in matches))
-        if candidates:
-            name = candidates[-1]
-            return name, base_url + name
-
-    if last_err:
-        raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}' ({last_err}).")
-    raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}'.")
+    name = candidates[-1]
+    return name, base_url + name
 
 
 def _download_http_file(url: str, out_path: Path, timeout_sec: int = 120) -> None:
@@ -4822,6 +4823,7 @@ def launch_gui() -> int:
                                 _set_status("Transcriptome DB install canceled. Spec testing disabled.")
                             else:
                                 _set_status(f"Transcriptome DB install failed ({err_txt}). Spec testing disabled.")
+                                messagebox.showerror("Ensembl DB install", str(err_txt))
                             if run_spec:
                                 spec_top50_forced_off["value"] = True
 
