@@ -1640,19 +1640,31 @@ def _resolve_ensembl_cdna_download(species_slug: str) -> tuple[str, str]:
     if not slug:
         raise ValueError("Species slug is required.")
 
-    base_url = f"https://ftp.ensembl.org/pub/current_fasta/{slug}/cdna/"
-    listing = _http_get_text(base_url, timeout_sec=60)
+    base_urls = [
+        f"https://ftp.ensembl.org/pub/current/fasta/{slug}/cdna/",
+        f"https://ftp.ensembl.org/pub/current_fasta/{slug}/cdna/",
+    ]
+    last_err = ""
 
-    matches = re.findall(r'href=["\']([^"\']+\.cdna\.all\.fa\.gz)["\']', listing, flags=re.IGNORECASE)
-    if not matches:
-        # Fallback for plain index listings where links may not be quoted as expected.
-        matches = re.findall(r'([A-Za-z0-9_.-]+\.cdna\.all\.fa\.gz)', listing, flags=re.IGNORECASE)
-    candidates = sorted(set(Path(m).name for m in matches))
-    if not candidates:
-        raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}'.")
+    for base_url in base_urls:
+        try:
+            listing = _http_get_text(base_url, timeout_sec=60)
+        except Exception as exc:
+            last_err = str(exc)
+            continue
 
-    name = candidates[-1]
-    return name, base_url + name
+        matches = re.findall(r'href=["\']([^"\']+\.cdna\.all\.fa\.gz)["\']', listing, flags=re.IGNORECASE)
+        if not matches:
+            # Fallback for plain index listings where links may not be quoted as expected.
+            matches = re.findall(r'([A-Za-z0-9_.-]+\.cdna\.all\.fa\.gz)', listing, flags=re.IGNORECASE)
+        candidates = sorted(set(Path(m).name for m in matches))
+        if candidates:
+            name = candidates[-1]
+            return name, base_url + name
+
+    if last_err:
+        raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}' ({last_err}).")
+    raise RuntimeError(f"No Ensembl cDNA .all FASTA found for '{slug}'.")
 
 
 def _download_http_file(url: str, out_path: Path, timeout_sec: int = 120) -> None:
