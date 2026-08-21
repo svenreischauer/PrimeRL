@@ -20,15 +20,15 @@ Override data root (advanced): set environment variable `PRIMERL_DATA_DIR`.
 
 ## Build .exe (PyInstaller)
 
-1. Install PyInstaller:
-   - `python -m pip install pyinstaller`
+1. Install the tested build dependencies:
+   - `python -m pip install ".[build]"`
 2. Build:
    - `powershell -ExecutionPolicy Bypass -File release/scripts/build_exe.ps1 -Version 1.2 -Clean`
 
 The build uses assets from the existing no-database portable bundle at:
 `release/PrimeRL_1.2_portable_win64_nodb/PrimeRL 1.2`.
 
-## Build MSI (WiX CLI v6)
+## Build MSI (WiX CLI v7; v6 remains supported)
 
 Prerequisite: WiX CLI installed.
 - `winget install --id WiXToolset.WiXCLI -e`

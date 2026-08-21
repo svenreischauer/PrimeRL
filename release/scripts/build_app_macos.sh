@@ -96,7 +96,10 @@ if [[ ! -d "$REPO_ROOT/.venv" ]]; then
 fi
 PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
 
-"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check pyinstaller ttkbootstrap openpyxl
+"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check \
+  "pyinstaller>=6.22.2,<7" \
+  "ttkbootstrap>=1.20.4,<2" \
+  "openpyxl>=3.1.5,<4"
 
 ADD_DATA_ARGS=()
 add_data_dir() {

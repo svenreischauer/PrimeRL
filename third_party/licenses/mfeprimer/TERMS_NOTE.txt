@@ -4,23 +4,24 @@ MFEprimer License and Terms
 Runtime binary:
 - PrimeRL/tools/bin/mfeprimer.exe
 
-Detected runtime version:
-- MFEprimer-4.2.4 (from `mfeprimer --help`)
+Release target:
+- MFEprimer-4.5.1
+- Windows release archive SHA-256: c92ddfe764b5f7be5d9a44826ee10fbba50d345e0dccede6ccecbe78ebf22679
+- Extracted Windows executable SHA-256: 06c8d04f73f81c02788e874796b26a62071077b28c28698f1aa6c45b32a2e27b
 
-Upstream licensing terms (source: quwubin/MFEprimer-2.0 README, "Copyright and license"):
-- Copyright (c) 2008-2012. Wubin Qu and Chenggang Zhang.
-- "MFEprimer (all the versions) source and executables are freely available for
-  academic, nonprofit and personal use."
-- "Commercial licensing information please contact Dr. Chenggang Zhang."
+Current upstream use statement:
+- MFEprimer command-line tools and online servers are free for nonprofit and commercial users.
 
 Primary source:
-- https://github.com/quwubin/MFEprimer-2.0
-  (README section: "Copyright and license")
+- https://www.mfeprimer.com/license/
 
 Additional project references:
 - https://www.mfeprimer.com/
 - https://github.com/quwubin/MFEprimer-3.0
 
+Historical terms reference:
+- https://github.com/quwubin/MFEprimer-2.0
+
 Release note:
-- If a different MFEprimer build/version is bundled later, update this file to the exact
-  upstream terms for that bundled version.
+- If a different MFEprimer build/version is bundled later, recheck the upstream terms
+  and update this file for that bundled version.

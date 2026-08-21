@@ -33,17 +33,17 @@
     {
       "name": "spidey",
       "source": "ncbi",
-      "version": "6.1.20170106+dfsg2",
-      "source_url": "https://sources.debian.org/src/ncbi-tools6/6.1.20170106+dfsg2-2/",
+      "version": "6.1.20170106+dfsg2-7",
+      "source_url": "https://sources.debian.org/src/ncbi-tools6/6.1.20170106%2Bdfsg2-7/",
       "sha256": "",
       "license_notice": "third_party/licenses/spidey/NCBI_NOTICE.txt"
     },
     {
       "name": "mfeprimer",
       "source": "mfeprimer",
-      "version": "4.2.4",
-      "source_url": "https://github.com/quwubin/MFEprimer-3.0/releases/download/v4.2.4/mfeprimer-4.2.4-linux-amd64.gz",
-      "sha256": "533ea292958ecb0d638dc4c34f664f6e8314e1e12dca2e323b3d6ae0f69968c0",
+      "version": "4.5.1",
+      "source_url": "https://github.com/quwubin/MFEprimer-3.0/releases/download/v4.5.1/mfeprimer-4.5.1-linux-amd64.gz",
+      "sha256": "56abb0789497a6273e0b7d226671d5f1d959d3bceaba5be53f0d2b2edc13c839",
       "license_notice": "third_party/licenses/mfeprimer/TERMS_NOTE.txt"
     }
   ]

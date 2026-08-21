@@ -37,7 +37,7 @@ New-Item -ItemType Directory -Force -Path $outputRoot, $workRoot, $distRoot | Ou
 
 & python -m PyInstaller --version | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    throw "PyInstaller is not installed for this Python. Install with: python -m pip install pyinstaller"
+    throw 'PyInstaller is missing. Install the tested build dependencies with: python -m pip install ".[build]"'
 }
 
 $addDataArgs = @(

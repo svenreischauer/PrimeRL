@@ -140,7 +140,10 @@ if ! "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
   fi
 fi
 
-"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check "${PIP_SCOPE_ARGS[@]}" pyinstaller ttkbootstrap openpyxl
+"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check "${PIP_SCOPE_ARGS[@]}" \
+  "pyinstaller>=6.22.2,<7" \
+  "ttkbootstrap>=1.20.4,<2" \
+  "openpyxl>=3.1.5,<4"
 
 ADD_DATA_ARGS=()
 add_data_dir() {

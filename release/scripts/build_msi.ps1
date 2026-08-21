@@ -17,14 +17,24 @@ if (-not (Test-Path (Join-Path $exeRoot "PrimeRL.exe"))) {
     throw "Executable payload missing. Build first: release/scripts/build_exe.ps1"
 }
 
-$wixPath = "C:\Program Files\WiX Toolset v6.0\bin\wix.exe"
-if (-not (Test-Path $wixPath)) {
-    $wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue
-    if ($wixCommand) {
-        $wixPath = $wixCommand.Source
-    } else {
-        throw "WiX CLI not found. Install with: winget install --id WiXToolset.WiXCLI -e"
+$wixPath = $null
+$wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue
+if ($wixCommand) {
+    $wixPath = $wixCommand.Source
+} else {
+    $wixCandidates = @(
+        "C:\Program Files\WiX Toolset v7.0\bin\wix.exe",
+        "C:\Program Files\WiX Toolset v6.0\bin\wix.exe"
+    )
+    foreach ($candidate in $wixCandidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            $wixPath = $candidate
+            break
+        }
     }
+}
+if (-not $wixPath) {
+    throw "WiX CLI v7 or v6 not found. Install with: winget install --id WiXToolset.WiXCLI -e"
 }
 
 $outputRoot = Join-Path $repoRoot "release\PrimeRL_1.2_msi_win64"

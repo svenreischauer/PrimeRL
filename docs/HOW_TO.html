@@ -509,36 +509,20 @@
             This step significantly increases assay reliability in gene families, paralog-rich genomes, or highly conserved sequence regions.
           </p>
 
-          <p><b>Sensitivity Preset</b></p>
+          <p><b>MFEprimer seed length (k)</b></p>
           <p>
-            The sensitivity preset determines how stringently MFEprimer evaluates partial matches during off-target detection.
+            PrimeRL does not pass a query-time <span class="kbd">-k</span> value. MFEprimer 4.5.1 reads k from the
+            selected binary <span class="kbd">.primerqc.bin</span> database index, which guarantees that the specificity query uses the same seed length that was
+            used to build the index.
           </p>
-          <p>Two presets are available:</p>
-
-          <p><b>Standard (Default)</b><br><span class="kbd">-k 9 --misMatch 1</span></p>
-          <ul>
-            <li>Uses a 9-mer seed</li>
-            <li>Allows up to 1 mismatch within the seed region</li>
-          </ul>
           <p>
-            This configuration provides a balanced trade-off between runtime and specificity. It efficiently detects clear off-target risks while
-            maintaining moderate computational cost.
+            The default mismatch setting remains <span class="kbd">--misMatch 1</span> and can be adjusted separately
+            under Specificity check parameters. To change k, rebuild the database index with the desired index-time
+            <span class="kbd">-k</span> value; PrimeRL will detect it automatically on subsequent queries.
           </p>
-
-          <p><b>Strict</b><br><span class="kbd">-k 8 --misMatch 1</span></p>
-          <ul>
-            <li>Uses a shorter 8-mer seed</li>
-            <li>Allows up to 1 mismatch</li>
-          </ul>
-          <p>Because shorter seeds are more permissive in detecting partial matches, this setting increases sensitivity toward:</p>
-          <ul>
-            <li>Closely related paralogs</li>
-            <li>Conserved gene family members</li>
-            <li>Highly homologous transcript variants</li>
-          </ul>
           <p>
-            The Strict mode is recommended when working with gene families or when maximal discrimination between similar transcripts is required.
-            However, it may increase runtime and eliminate more borderline candidates.
+            Old <span class="kbd">.primerqc</span> indexes are not supported by auto-k mode; delete them and rebuild
+            the transcriptome index in binary format.
           </p>
 
           <p><b>Avoid SNPs</b></p>

@@ -26,7 +26,7 @@ This document defines how PrimeRL Linux standalone releases are produced.
 - `primer3_config/`
 
 ## Optional Data
-- Transcriptome FASTA and `.primerqc` indexes may be shipped in optional/full profiles.
+- Transcriptome FASTA and binary MFEprimer `.primerqc.bin` indexes may be shipped in optional/full profiles.
 - Default Linux artifact should remain no-database (`nodb`) for manageable package size.
 
 ## Compliance
