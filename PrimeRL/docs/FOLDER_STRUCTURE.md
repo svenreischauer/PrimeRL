@@ -8,9 +8,9 @@
 - `PrimeRL/tools/scripts/`
   - maintenance/indexing scripts
 - `PrimeRL/databases/ensembl/`
-  - Ensembl FASTA + `.primerqc` index files
+  - Ensembl FASTA + `.primerqc.bin` index files
 - `PrimeRL/databases/refseq/`
-  - RefSeq FASTA + `.primerqc` index files
+  - RefSeq FASTA + `.primerqc.bin` index files
 - `PrimeRL/config/`
   - default app settings, path presets
 - `PrimeRL/runtime/logs/`

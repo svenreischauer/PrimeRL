@@ -73,8 +73,7 @@ def _stage_file(
 def _sidecar_candidates(base: Path) -> list[Path]:
     # Keep only sidecars useful for reproducibility/index validation.
     names = [
-        f"{base.name}.primerqc",
-        f"{base.name}.primerqc.fai",
+        f"{base.name}.primerqc.bin",
         f"{base.name}.fai",
         f"{base.name}.json",
         f"{base.name}.log",

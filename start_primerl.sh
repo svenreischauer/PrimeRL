@@ -14,7 +14,9 @@ if [[ ! -d .venv ]]; then
 fi
 
 source .venv/bin/activate
-python -m pip install --quiet --disable-pip-version-check ttkbootstrap openpyxl
+python -m pip install --quiet --disable-pip-version-check \
+  "ttkbootstrap>=1.20.4,<2" \
+  "openpyxl>=3.1.5,<4"
 
 has_spidey=0
 if [[ -x "PrimeRL/tools/bin/spidey" || -x "tools/bin/spidey" ]]; then

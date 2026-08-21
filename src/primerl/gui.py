@@ -41,12 +41,10 @@ from .ensembl_adapter import (
 from .io_fasta import read_first_fasta_sequence
 from .mfeprimer_spec import (
     DEFAULT_SPEC_PARAMS_RAW,
-    SPEC_PRESET_SOFT,
-    SPEC_PRESET_STRICT,
     build_mfeprimer_spec_cmd,
-    preset_from_spec_param_raw,
+    find_mfeprimer_binary_index,
+    normalize_spec_param_raw,
     resolve_spec_param_tokens,
-    spec_param_raw_for_preset,
 )
 from .primer3_qpcr import (
     Primer3RunSettings,
@@ -743,13 +741,23 @@ def _filter_rows_with_mfeprimer(
                 lines.append(str(row[4]))
             inp.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+            cmd_exe = exe
+            cmd_inp = inp
+            cmd_out = out
+            run_cwd: str | None = None
+            if os.name == "nt":
+                cmd_exe = exe.resolve()
+                cmd_inp = Path(inp.name)
+                cmd_out = Path(out.name)
+                run_cwd = td
+
             cmd = [
-                str(exe),
+                str(cmd_exe),
                 "dimer",
                 "-i",
-                str(inp),
+                str(cmd_inp),
                 "-o",
-                str(out),
+                str(cmd_out),
                 "-d",
                 str(dg_cutoff),
                 "-s",
@@ -763,6 +771,7 @@ def _filter_rows_with_mfeprimer(
             try:
                 proc = subprocess_run(
                     cmd,
+                    cwd=run_cwd,
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
@@ -1014,9 +1023,8 @@ def _filter_rows_with_mfeprimer_spec(
     remove_pct = max(0.0, min(100.0, float(spec_remove_pct)))
 
     # Require pre-indexed DB for safety: indexing whole genomes can be very large/slow.
-    idx = Path(str(db) + ".primerqc")
-    if not idx.exists():
-        return rows, "MFEprimer spec DB is not indexed (.primerqc missing); skipped."
+    if find_mfeprimer_binary_index(db) is None:
+        return rows, "MFEprimer spec DB is not indexed (.primerqc.bin missing); skipped."
 
     with tempfile.TemporaryDirectory() as td:
         kept_idxs: set[int] = set()
@@ -1051,20 +1059,40 @@ def _filter_rows_with_mfeprimer_spec(
                     lines.append(f"p{i}\t{row[0]}\t{row[4]}")
                 inp.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+                cmd_exe = exe
+                cmd_inp = inp
+                cmd_db = db
+                cmd_out = out
+                cmd_snp_path = snp_bed_path if snp_enabled else ""
+                run_cwd: str | None = None
+                if os.name == "nt":
+                    # MFEprimer 4.5.1's Windows build can recurse indefinitely
+                    # while creating parent directories for absolute writable
+                    # paths. Keep input/output relative to the batch directory;
+                    # read-only paths may remain absolute.
+                    cmd_exe = exe.resolve()
+                    cmd_inp = Path(inp.name)
+                    cmd_db = db.resolve()
+                    cmd_out = Path(out.name)
+                    if cmd_snp_path:
+                        cmd_snp_path = str(Path(cmd_snp_path).resolve())
+                    run_cwd = td
+
                 cmd = build_mfeprimer_spec_cmd(
-                    exe=exe,
-                    inp=inp,
-                    db=db,
-                    out=out,
+                    exe=cmd_exe,
+                    inp=cmd_inp,
+                    db=cmd_db,
+                    out=cmd_out,
                     min_amp_size=min_amp_size,
                     max_amp_size=max_amp_size,
                     threads_per_job=threads_per_job,
                     spec_extra_args=spec_extra_args,
-                    snp_bed_path=(snp_bed_path if snp_enabled else ""),
+                    snp_bed_path=cmd_snp_path,
                     snp_records_loaded=(snp_records_loaded if snp_enabled else 0),
                 )
                 proc = subprocess_run(
                     cmd,
+                    cwd=run_cwd,
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
@@ -2265,10 +2293,7 @@ def launch_gui() -> int:
         value=str(runtime_settings.get("binary_profile") or _infer_binary_profile_from_paths(defaults["primer3"], defaults["ntthal"]))
     )
     mfeprimer_spec_params_var = tk.StringVar(
-        value=str(runtime_settings.get("mfeprimer_spec_params") or DEFAULT_SPEC_PARAMS_RAW)
-    )
-    spec_sensitivity_preset_var = tk.StringVar(
-        value=preset_from_spec_param_raw(str(mfeprimer_spec_params_var.get() or DEFAULT_SPEC_PARAMS_RAW))
+        value=normalize_spec_param_raw(str(runtime_settings.get("mfeprimer_spec_params") or DEFAULT_SPEC_PARAMS_RAW))
     )
 
     def _ensure_tool_path(var: tk.StringVar, stem: str, required_label: str) -> str:
@@ -2281,7 +2306,7 @@ def launch_gui() -> int:
             return resolved
         raise ValueError(f"{required_label} path is required.")
 
-    def _build_specificity_controls(parent: ttk.LabelFrame) -> tuple[ttk.Checkbutton, ttk.Combobox, ttk.Checkbutton, ttk.Combobox]:
+    def _build_specificity_controls(parent: ttk.LabelFrame) -> tuple[ttk.Checkbutton, ttk.Checkbutton, ttk.Combobox]:
         controls = ttk.Frame(parent)
         controls.grid(row=0, column=0, sticky="nsew", padx=PAD_S, pady=(PAD_S, PAD_S))
         controls.columnconfigure(0, weight=1)
@@ -2296,13 +2321,9 @@ def launch_gui() -> int:
             command=lambda: _update_snp_check_controls(),
         )
         spec_chk.grid(row=0, column=0, sticky="w", pady=(0, PAD_S // 2))
-        sensitivity_box = ttk.Combobox(
-            controls,
-            textvariable=spec_sensitivity_preset_var,
-            values=(SPEC_PRESET_STRICT, SPEC_PRESET_SOFT),
-            state="readonly",
+        ttk.Label(controls, text="k: auto (from index)").grid(
+            row=0, column=1, sticky="w", padx=(PAD_S, 0)
         )
-        sensitivity_box.grid(row=0, column=1, sticky="ew", padx=(PAD_S, 0))
         snp_chk = ttk.Checkbutton(
             controls,
             text="Avoid SNPs",
@@ -2317,9 +2338,9 @@ def launch_gui() -> int:
             state="readonly",
         )
         snp_box.grid(row=1, column=1, sticky="ew", padx=(PAD_S, 0), pady=(PAD_S // 2, 0))
-        return spec_chk, sensitivity_box, snp_chk, snp_box
+        return spec_chk, snp_chk, snp_box
 
-    spec_top50_chk, spec_sensitivity_box, snp_check_chk, snp_policy_box = _build_specificity_controls(specificity_group)
+    spec_top50_chk, snp_check_chk, snp_policy_box = _build_specificity_controls(specificity_group)
     def _build_run_options_row(parent: ttk.LabelFrame) -> tuple[ttk.Entry, ttk.Button, ttk.Button, ttk.Entry]:
         ttk.Label(parent, text="Max pairs").grid(row=1, column=0, sticky="w")
         max_pairs = ttk.Entry(parent, textvariable=max_pairs_var, width=8)
@@ -2476,42 +2497,16 @@ def launch_gui() -> int:
             runtime_settings_path.parent.mkdir(parents=True, exist_ok=True)
             max_bases = _sanitize_max_genomic_view_bases(max_genomic_view_bases_var.get())
             max_genomic_view_bases_var.set(str(max_bases))
+            spec_params = normalize_spec_param_raw(str(mfeprimer_spec_params_var.get() or ""))
+            mfeprimer_spec_params_var.set(spec_params)
             payload = {
                 "binary_profile": str(binary_profile_var.get() or "").strip(),
                 "max_genomic_view_bases": int(max_bases),
-                "mfeprimer_spec_params": str(mfeprimer_spec_params_var.get() or "").strip(),
+                "mfeprimer_spec_params": spec_params,
             }
             runtime_settings_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
         except Exception:
             pass
-
-    spec_sync_guard = {"busy": False}
-
-    def _sync_spec_params_from_preset(*_args: object) -> None:
-        if bool(spec_sync_guard.get("busy")):
-            return
-        try:
-            spec_sync_guard["busy"] = True
-            raw = spec_param_raw_for_preset(spec_sensitivity_preset_var.get())
-            if str(mfeprimer_spec_params_var.get() or "").strip() != raw:
-                mfeprimer_spec_params_var.set(raw)
-        finally:
-            spec_sync_guard["busy"] = False
-
-    def _sync_preset_from_spec_params(*_args: object) -> None:
-        if bool(spec_sync_guard.get("busy")):
-            return
-        try:
-            spec_sync_guard["busy"] = True
-            preset = preset_from_spec_param_raw(str(mfeprimer_spec_params_var.get() or ""))
-            if str(spec_sensitivity_preset_var.get() or "") != preset:
-                spec_sensitivity_preset_var.set(preset)
-        finally:
-            spec_sync_guard["busy"] = False
-
-    spec_sensitivity_preset_var.trace_add("write", _sync_spec_params_from_preset)
-    mfeprimer_spec_params_var.trace_add("write", _sync_preset_from_spec_params)
-    _sync_preset_from_spec_params()
 
     def _max_genomic_view_bases() -> int:
         n = _sanitize_max_genomic_view_bases(max_genomic_view_bases_var.get())
@@ -2706,19 +2701,12 @@ def launch_gui() -> int:
         else:
             snp_policy_box.configure(state="disabled")
 
-    def _update_spec_sensitivity_control() -> None:
-        if spec_top50_chk.instate(("disabled",)):
-            spec_sensitivity_box.configure(state="disabled")
-        else:
-            spec_sensitivity_box.configure(state="readonly")
-
     def _update_spec_toggle_availability(*_args: object) -> None:
         has_target_id = bool(_normalize_ensembl_gene_id(target_ensembl_gene_id_var.get()))
         has_spec_db = bool(state.get("spec_db_available", True))
         has_mfeprimer = bool(state.get("mfeprimer_available", True))
         if has_target_id and has_spec_db and has_mfeprimer:
             spec_top50_chk.configure(state="normal")
-            _update_spec_sensitivity_control()
             if spec_top50_forced_off["value"]:
                 spec_top50_var.set(1)
                 spec_top50_forced_off["value"] = False
@@ -2730,7 +2718,6 @@ def launch_gui() -> int:
             spec_top50_forced_off["value"] = True
         spec_top50_var.set(0)
         spec_top50_chk.configure(state="disabled")
-        _update_spec_sensitivity_control()
         _update_snp_check_controls()
         _update_map_snp_view_controls()
 
@@ -2774,7 +2761,7 @@ def launch_gui() -> int:
 
         def _score(p: Path) -> tuple[int, int, int]:
             name = p.name.lower()
-            indexed = 1 if Path(str(p) + ".primerqc").exists() else 0
+            indexed = int(find_mfeprimer_binary_index(p) is not None)
             cdna_all = 1 if ".cdna.all." in name else 0
             return (indexed, cdna_all, len(name))
 
@@ -2892,13 +2879,21 @@ def launch_gui() -> int:
                     raise RuntimeError(cancel_sentinel)
 
                 cpu = max(1, min(16, _available_cpu_threads(reserve=1, max_cap=16)))
-                idx_cmd = [str(mfe_path), "index", "-i", str(fasta_path), "-c", str(cpu), "-f"]
+                idx_exe = mfe_path
+                idx_input = str(fasta_path)
+                idx_cwd: str | None = None
+                if os.name == "nt":
+                    idx_exe = mfe_path.resolve()
+                    idx_input = fasta_path.name
+                    idx_cwd = str(fasta_path.parent.resolve())
+                idx_cmd = [str(idx_exe), "index", "-i", idx_input, "-c", str(cpu), "-f"]
                 root.after(0, lambda: _update_progress(f"Indexing transcriptome with MFEprimer ({cpu} CPU) ..."))
                 flags = 0
                 if os.name == "nt":
                     flags |= int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
                 proc = subprocess.Popen(
                     idx_cmd,
+                    cwd=idx_cwd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -2921,9 +2916,10 @@ def launch_gui() -> int:
                 if cancel_flag["value"]:
                     raise RuntimeError(cancel_sentinel)
 
-                idx_path = Path(str(fasta_path) + ".primerqc")
-                if not idx_path.exists():
-                    raise RuntimeError("Index command finished, but .primerqc file was not created.")
+                if find_mfeprimer_binary_index(fasta_path) is None:
+                    raise RuntimeError(
+                        "Index command finished, but no .primerqc.bin file was created."
+                    )
 
                 root.after(
                     0,
@@ -5122,10 +5118,10 @@ def launch_gui() -> int:
 
             def _refresh_db_hint(*_args: object) -> None:
                 db_path = _selected_species_db()
-                if db_path and Path(db_path).exists() and Path(str(db_path) + ".primerqc").exists():
+                if db_path and Path(db_path).exists() and find_mfeprimer_binary_index(Path(db_path)) is not None:
                     db_hint_var.set(f"Spec DB: {Path(db_path).name}")
                 elif db_path and Path(db_path).exists():
-                    db_hint_var.set(f"Spec DB not indexed: {Path(db_path).name}.primerqc missing")
+                    db_hint_var.set(f"Spec DB not indexed: {Path(db_path).name}.primerqc.bin missing")
                 else:
                     db_hint_var.set("Spec DB not found for selected species (install in Options).")
 
@@ -5456,8 +5452,8 @@ def launch_gui() -> int:
                 try:
                     db_path = _find_best_ensembl_transcriptome_db(species_slug)
                     db = Path(db_path) if db_path else None
-                    idx = Path(str(db) + ".primerqc") if db is not None else None
-                    if db is None or not db.exists() or idx is None or not idx.exists():
+                    idx = find_mfeprimer_binary_index(db) if db is not None else None
+                    if db is None or not db.exists() or idx is None:
                         _add_status(
                             "Transcriptome specificity",
                             passed=False,
@@ -5799,6 +5795,10 @@ def launch_gui() -> int:
         ttk.Button(spec_param_group, text="Apply", command=_save_runtime_settings).grid(
             row=0, column=1, sticky="w", padx=(6, 6), pady=(6, 2)
         )
+        ttk.Label(
+            spec_param_group,
+            text="MFEprimer reads k from the database index; query-time -k values are ignored.",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=6, pady=(0, 6))
         spec_param_group.columnconfigure(0, weight=1)
         rr += 1
         ttk.Label(frm, text="Non-3' SNP policy").grid(row=rr, column=0, sticky="w", pady=2)

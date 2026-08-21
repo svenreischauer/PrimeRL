@@ -4,14 +4,19 @@ curl License Note
 Binary used by runtime:
 - PrimeRL/tools/bin/curl.exe
 
-Detected version in this bundle:
-- curl 8.16.0 (libcurl/8.16.0)
+Release target:
+- curl 8.21.0, official Windows x64 build 8.21.0_7
+- Upstream archive SHA-256: e469dcdb219d0eca9236b01c7e4bb34fe04af3d4036d350829178dc60f241ae4
+- Extracted executable SHA-256: d52793b2279d9226498dbadc00e524333fb64a996bda0ce621abe9a620f1188a
 
 curl/libcurl are distributed under the curl license (MIT/X-derivative).
+The official Windows executable is statically linked; the corresponding
+dependency notices are listed in `DEPENDENCIES_NOTE.txt` and stored under
+`dependencies/`.
 
 Reference pages:
 - https://curl.se/docs/copyright.html
 - https://curl.se/docs/license.html
 
 Action for release packaging:
-- Add the exact upstream curl license text for the bundled curl build to this folder before public redistribution.
+- Include this complete folder with the bundled binary.

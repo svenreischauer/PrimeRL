@@ -1,0 +1,20 @@
+curl 8.21.0_7 Windows x64 Dependency Notices
+=============================================
+
+The official curl-for-win executable used by PrimeRL reports these statically
+linked third-party libraries. Versions come from the upstream build page and
+the executable's `--version` output:
+
+- Brotli 1.2.0: `dependencies/brotli-LICENSE.txt`
+- libpsl 0.23.2: `dependencies/libpsl-COPYING.txt`
+- LibreSSL 4.3.2: `dependencies/libressl-COPYING.txt`
+- libssh2 1.11.1: `dependencies/libssh2-COPYING.txt`
+- nghttp2 1.70.0: `dependencies/nghttp2-COPYING.txt`
+- nghttp3 1.18.0: `dependencies/nghttp3-COPYING.txt`
+- ngtcp2 1.25.0: `dependencies/ngtcp2-COPYING.txt`
+- Public Suffix List 2026-06-23: `dependencies/public-suffix-list-LICENSE.txt`
+- zlib-ng 2.3.3: `dependencies/zlib-ng-LICENSE.md`
+- zstd 1.5.7: `dependencies/zstd-LICENSE.txt`
+
+Upstream build reference:
+- https://curl.se/windows/

@@ -9,14 +9,14 @@ Usage:
   ./release/scripts/build_linux_app.sh [options]
 
 Options:
-  --version <ver>       Version tag used in output folder name (default: 1.2)
+  --version <ver>       Version tag used in output folder name (default: 1.3)
   --clean               Remove previous output folder before build
   --with-databases      Include bundled databases in app payload
   -h, --help            Show this help
 EOF
 }
 
-VERSION="1.2"
+VERSION="1.3"
 CLEAN=0
 WITH_DATABASES=0
 
@@ -140,7 +140,10 @@ if ! "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
   fi
 fi
 
-"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check "${PIP_SCOPE_ARGS[@]}" pyinstaller ttkbootstrap openpyxl
+"$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check "${PIP_SCOPE_ARGS[@]}" \
+  "pyinstaller>=6.22.2,<7" \
+  "ttkbootstrap>=1.20.4,<2" \
+  "openpyxl>=3.1.5,<4"
 
 ADD_DATA_ARGS=()
 add_data_dir() {
