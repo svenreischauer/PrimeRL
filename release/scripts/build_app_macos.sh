@@ -9,7 +9,7 @@ Usage:
   ./release/scripts/build_app_macos.sh [options]
 
 Options:
-  --version <ver>       Version tag used in output folder name (default: 1.2)
+  --version <ver>       Version tag used in output folder name (default: 1.3)
   --clean               Remove previous output folder before build
   --with-databases      Include bundled databases in the app payload
   --sign                Sign app after build (ad-hoc by default)
@@ -18,7 +18,7 @@ Options:
 EOF
 }
 
-VERSION="1.2"
+VERSION="1.3"
 CLEAN=0
 WITH_DATABASES=0
 SIGN_AFTER_BUILD=0

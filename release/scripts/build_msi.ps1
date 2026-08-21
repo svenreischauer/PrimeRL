@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.2.0",
+    [string]$Version = "1.3.0",
     [string]$Manufacturer = "Reischauer Lab",
     [switch]$BuildExe,
     [switch]$Clean
@@ -9,10 +9,10 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if ($BuildExe) {
-    & (Join-Path $PSScriptRoot "build_exe.ps1") -Version "1.2" -Clean:$Clean
+    & (Join-Path $PSScriptRoot "build_exe.ps1") -Version "1.3" -Clean:$Clean
 }
 
-$exeRoot = Join-Path $repoRoot "release\PrimeRL_1.2_exe_win64_nodb\dist\PrimeRL"
+$exeRoot = Join-Path $repoRoot "release\PrimeRL_1.3_exe_win64_nodb\dist\PrimeRL"
 if (-not (Test-Path (Join-Path $exeRoot "PrimeRL.exe"))) {
     throw "Executable payload missing. Build first: release/scripts/build_exe.ps1"
 }
@@ -37,12 +37,12 @@ if (-not $wixPath) {
     throw "WiX CLI v7 or v6 not found. Install with: winget install --id WiXToolset.WiXCLI -e"
 }
 
-$outputRoot = Join-Path $repoRoot "release\PrimeRL_1.2_msi_win64"
+$outputRoot = Join-Path $repoRoot "release\PrimeRL_1.3_msi_win64"
 $wixRoot = Join-Path $outputRoot "wix"
 $productWxs = Join-Path $wixRoot "Product.wxs"
 $licenseRtf = Join-Path $wixRoot "LICENSE.rtf"
 $cleanupVbs = Join-Path $wixRoot "CleanupPrompt.vbs"
-$msiPath = Join-Path $outputRoot "PrimeRL_1.2_win64.msi"
+$msiPath = Join-Path $outputRoot "PrimeRL_1.3_win64.msi"
 
 if ($Clean -and (Test-Path $outputRoot)) {
     Remove-Item -Recurse -Force $outputRoot

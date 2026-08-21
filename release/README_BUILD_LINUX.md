@@ -61,33 +61,33 @@ micromamba run -p ~/.micromamba/envs/primerl-clang \
 No databases (default profile):
 
 ```bash
-./release/scripts/build_linux_app.sh --version 1.2 --clean
+./release/scripts/build_linux_app.sh --version 1.3 --clean
 ```
 
 With bundled databases:
 
 ```bash
-./release/scripts/build_linux_app.sh --version 1.2 --clean --with-databases
+./release/scripts/build_linux_app.sh --version 1.3 --clean --with-databases
 ```
 
 Output (no DB):
-- `release/PrimeRL_1.2_app_linux_x86_64_nodb/dist/PrimeRL`
+- `release/PrimeRL_1.3_app_linux_x86_64_nodb/dist/PrimeRL`
 
 ## 3) Build Debian Package
 
 ```bash
-./release/scripts/build_deb.sh --version 1.2.0 --clean \
-  --app-dir release/PrimeRL_1.2_app_linux_x86_64_nodb/dist/PrimeRL
+./release/scripts/build_deb.sh --version 1.3.0 --clean \
+  --app-dir release/PrimeRL_1.3_app_linux_x86_64_nodb/dist/PrimeRL
 ```
 
 Output:
-- `release/PrimeRL_1.2.0_deb_amd64/dist/primerl_1.2.0_amd64.deb`
+- `release/PrimeRL_1.3.0_deb_amd64/dist/primerl_1.3.0_amd64.deb`
 
 ## 4) Smoke Test
 Install:
 
 ```bash
-sudo dpkg -i release/PrimeRL_1.2.0_deb_amd64/dist/primerl_1.2.0_amd64.deb
+sudo dpkg -i release/PrimeRL_1.3.0_deb_amd64/dist/primerl_1.3.0_amd64.deb
 ```
 
 Launch:
