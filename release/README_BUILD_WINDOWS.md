@@ -38,4 +38,4 @@ Prerequisite: WiX CLI installed.
 2. Or build EXE first, then MSI in one call:
    - `powershell -ExecutionPolicy Bypass -File release/scripts/build_msi.ps1 -Version 1.3.2 -BuildExe -Clean`
 
-The MSI uses `WixUI_InstallDir`, so users can choose install location (default `Program Files`) and explicitly choose whether to create a desktop shortcut (enabled by default).
+The MSI uses the WiX feature-selection page. It presents “Create a desktop shortcut” as a default-selected optional feature, so users can keep or remove the desktop link before installation.
