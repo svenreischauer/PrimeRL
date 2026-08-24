@@ -1,10 +1,16 @@
 # Changelog
 
+## 1.3.3 - 2026-08-24
+
+### Fixed
+
+- Use the native MSI feature-selection page for the optional desktop shortcut.
+
 ## 1.3.2 - 2026-08-24
 
 ### Fixed
 
-- Corrected WiX 6 installer schema for the desktop-shortcut choice page.
+- Corrected the WiX 6 installer definition for the desktop-shortcut choice.
 
 ## 1.3.1 - 2026-08-24
 
