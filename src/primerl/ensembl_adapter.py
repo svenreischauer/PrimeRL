@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import json
 import re
@@ -101,6 +102,21 @@ def fetch_json_with_transport(
         )
 
     return data
+
+
+def fetch_json_concurrently_with_transport(
+    urls: list[str],
+    transport: Callable[[str], tuple[int, str]],
+) -> list[Any | EnsemblError | EnsemblNoGeneFound]:
+    """Fetch independent Ensembl JSON endpoints concurrently, preserving URL order."""
+    if not urls:
+        return []
+    if len(urls) == 1:
+        return [fetch_json_with_transport(urls[0], transport)]
+
+    with ThreadPoolExecutor(max_workers=min(4, len(urls)), thread_name_prefix="ensembl-fetch") as executor:
+        futures = [executor.submit(fetch_json_with_transport, url, transport) for url in urls]
+        return [future.result() for future in futures]
 
 
 def _tx_length(tx: dict[str, Any]) -> int:

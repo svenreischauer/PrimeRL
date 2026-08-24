@@ -1,5 +1,7 @@
 ﻿import unittest
 
+import time
+
 from primerl.ensembl_adapter import (
     EnsemblError,
     EnsemblNoGeneFound,
@@ -9,6 +11,7 @@ from primerl.ensembl_adapter import (
     choose_longest_transcript,
     decode_ensembl_json,
     extract_transcript_choices,
+    fetch_json_concurrently_with_transport,
     fetch_json_with_transport,
     map_ensembl_seq_type,
     normalize_species_name,
@@ -79,6 +82,18 @@ class DecodeAndFetchTests(unittest.TestCase):
         result = fetch_json_with_transport("https://rest.ensembl.org/lookup/symbol/homo_sapiens/ACTB?expand=1", transport)
         self.assertIsInstance(result, dict)
         self.assertEqual(result["id"], "ENSG1")
+
+    def test_concurrent_fetch_preserves_order_and_reduces_wait_time(self) -> None:
+        def transport(url: str) -> tuple[int, str]:
+            time.sleep(0.12)
+            return 0, f'{{"id":"{url}"}}'
+
+        started = time.monotonic()
+        result = fetch_json_concurrently_with_transport(["genomic", "cdna"], transport)
+        elapsed = time.monotonic() - started
+
+        self.assertLess(elapsed, 0.20)
+        self.assertEqual([item["id"] for item in result], ["genomic", "cdna"])
 
 
 class TranscriptChoiceTests(unittest.TestCase):

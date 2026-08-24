@@ -35,6 +35,7 @@ from .ensembl_adapter import (
     build_sequence_id_url,
     choose_preferred_transcript,
     extract_transcript_choices,
+    fetch_json_concurrently_with_transport,
     fetch_json_with_transport,
     map_ensembl_seq_type,
 )
@@ -4719,17 +4720,23 @@ def launch_gui() -> int:
             def _worker_stage2() -> None:
                 try:
                     _set_retrieve_status_async("Mapping transcript bounds and SNP positions ...")
-                    tx_bounds, tx_snp_pos = _cdna_bounds_and_snp_positions_from_transcript(
-                        lookup_payload=lookup_payload,
-                        transcript_id=transcript_id,
-                        snp_bed_path=snp_bed_path,
-                    )
-
-                    _set_retrieve_status_async("Downloading genomic and cDNA sequence from Ensembl ...")
                     g_url = build_sequence_id_url(transcript_id, "genomic")
                     c_url = build_sequence_id_url(transcript_id, "cdna")
-                    g_data = fetch_json_with_transport(g_url, _http_transport)
-                    c_data = fetch_json_with_transport(c_url, _http_transport)
+                    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ensembl-retrieve") as executor:
+                        bounds_future = executor.submit(
+                            _cdna_bounds_and_snp_positions_from_transcript,
+                            lookup_payload=lookup_payload,
+                            transcript_id=transcript_id,
+                            snp_bed_path=snp_bed_path,
+                        )
+                        _set_retrieve_status_async("Downloading genomic and cDNA sequence from Ensembl ...")
+                        sequences_future = executor.submit(
+                            fetch_json_concurrently_with_transport,
+                            [g_url, c_url],
+                            _http_transport,
+                        )
+                        tx_bounds, tx_snp_pos = bounds_future.result()
+                        g_data, c_data = sequences_future.result()
                     if isinstance(g_data, EnsemblError) or isinstance(c_data, EnsemblError):
                         msg = (g_data.message if isinstance(g_data, EnsemblError) else "") + " " + (
                             c_data.message if isinstance(c_data, EnsemblError) else ""
