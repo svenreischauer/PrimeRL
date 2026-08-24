@@ -46,8 +46,7 @@ jobs:
           $payload = Join-Path $env:RUNNER_TEMP "primerl-tools"
           Expand-Archive -LiteralPath $archive -DestinationPath $payload -Force
           $toolBin = "PrimeRL\tools\bin"
-          Remove-Item -LiteralPath $toolBin -Recurse -Force
-          New-Item -ItemType Directory -Path $toolBin | Out-Null
+          New-Item -ItemType Directory -Path $toolBin -Force | Out-Null
           Copy-Item -Path (Join-Path $payload "bin\*") -Destination $toolBin -Recurse -Force
 
           $required = "primer3_core.exe", "ntthal.exe", "oligotm.exe", "Spidey.exe", "mfeprimer.exe", "curl.exe"
