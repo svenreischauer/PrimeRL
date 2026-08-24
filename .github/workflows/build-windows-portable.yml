@@ -1,0 +1,127 @@
+name: Build Windows portable bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Portable bundle version (without the leading v)
+        required: true
+        default: "1.3"
+        type: string
+      release_tag:
+        description: Existing GitHub Release tag that supplies the tool payload and receives the portable ZIP
+        required: true
+        default: "v1.3.0"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and publish Windows portable bundle
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      TOOL_PAYLOAD_SHA256: dc31daca41a0981afd890259ca3a479a5da6207b81059109327e17aedcf399cb
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out released source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download and verify the Windows tool payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $name = "PrimeRL-tools-win64-v1.3.0.zip"
+          gh release download $env:RELEASE_TAG --pattern $name --dir $env:RUNNER_TEMP --clobber
+          $archive = Join-Path $env:RUNNER_TEMP $name
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+          if ($actual -ne $env:TOOL_PAYLOAD_SHA256) {
+            throw "Tool payload SHA256 mismatch. Expected $env:TOOL_PAYLOAD_SHA256, got $actual."
+          }
+          $payload = Join-Path $env:RUNNER_TEMP "primerl-tools"
+          Expand-Archive -LiteralPath $archive -DestinationPath $payload -Force
+          $toolBin = "PrimeRL\tools\bin"
+          Remove-Item -LiteralPath $toolBin -Recurse -Force
+          New-Item -ItemType Directory -Path $toolBin | Out-Null
+          Copy-Item -Path (Join-Path $payload "bin\*") -Destination $toolBin -Recurse -Force
+
+          $required = "primer3_core.exe", "ntthal.exe", "oligotm.exe", "Spidey.exe", "mfeprimer.exe", "curl.exe"
+          foreach ($tool in $required) {
+            $path = Join-Path "PrimeRL\tools\bin" $tool
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Required tool is missing from payload: $tool"
+            }
+          }
+          $mfeVersion = & "PrimeRL\tools\bin\mfeprimer.exe" version
+          if ($mfeVersion -ne "mfeprimer 4.5.1") {
+            throw "Expected MFEprimer 4.5.1, got: $mfeVersion"
+          }
+
+      - name: Create no-database build assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $assetsRoot = "release\PrimeRL_$env:VERSION`_portable_win64_nodb"
+          $assetsApp = Join-Path $assetsRoot "PrimeRL $env:VERSION"
+          New-Item -ItemType Directory -Path $assetsApp -Force | Out-Null
+          Copy-Item -LiteralPath "PrimeRL" -Destination (Join-Path $assetsApp "PrimeRL") -Recurse -Force
+          Copy-Item -LiteralPath "third_party" -Destination (Join-Path $assetsApp "third_party") -Recurse -Force
+          $databases = Join-Path $assetsApp "PrimeRL\databases"
+          if (Test-Path -LiteralPath $databases) {
+            Remove-Item -LiteralPath $databases -Recurse -Force
+          }
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: python -m pip install ".[build]"
+
+      - name: Build portable application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          & .\release\scripts\build_exe.ps1 -Version $env:VERSION -Clean
+          if ($LASTEXITCODE -ne 0) {
+            throw "PyInstaller build failed."
+          }
+
+      - name: Archive portable application
+        id: archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dist = "release\PrimeRL_$env:VERSION`_exe_win64_nodb\dist\PrimeRL"
+          if (-not (Test-Path -LiteralPath (Join-Path $dist "PrimeRL.exe"))) {
+            throw "Portable executable was not produced."
+          }
+          $archiveRoot = Join-Path $env:RUNNER_TEMP "PrimeRL $env:VERSION"
+          Copy-Item -LiteralPath $dist -Destination $archiveRoot -Recurse -Force
+          $zip = "release\PrimeRL_$env:VERSION`_portable_win64_nodb.zip"
+          Compress-Archive -LiteralPath $archiveRoot -DestinationPath $zip -CompressionLevel Optimal -Force
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          "## Portable bundle`n`n- File: ``$(Split-Path -Leaf $zip)``
+- SHA256: ``$hash``
+- Database profile: no database included" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Retain workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimeRL-${{ inputs.version }}-portable-win64-nodb
+          path: ${{ steps.archive.outputs.zip }}
+          if-no-files-found: error
+
+      - name: Publish portable ZIP to GitHub Release
+        shell: pwsh
+        run: gh release upload $env:RELEASE_TAG "${{ steps.archive.outputs.zip }}" --clobber
