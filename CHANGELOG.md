@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 - 2026-08-24
+
+### Fixed
+
+- Corrected the main window title to show PrimeRL v1.3.1.
+- Added an explicit, default-on installer choice for creating a desktop shortcut.
+
 ## 1.3.0 - 2026-08-22
 
 ### Changed

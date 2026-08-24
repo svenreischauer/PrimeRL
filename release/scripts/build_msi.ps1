@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.3.0",
+    [string]$Version = "1.3.1",
     [string]$Manufacturer = "Reischauer Lab",
     [switch]$BuildExe,
     [switch]$Clean
@@ -9,10 +9,10 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if ($BuildExe) {
-    & (Join-Path $PSScriptRoot "build_exe.ps1") -Version "1.3" -Clean:$Clean
+    & (Join-Path $PSScriptRoot "build_exe.ps1") -Version $Version -Clean:$Clean
 }
 
-$exeRoot = Join-Path $repoRoot "release\PrimeRL_1.3_exe_win64_nodb\dist\PrimeRL"
+$exeRoot = Join-Path $repoRoot ("release\PrimeRL_{0}_exe_win64_nodb\dist\PrimeRL" -f $Version)
 if (-not (Test-Path (Join-Path $exeRoot "PrimeRL.exe"))) {
     throw "Executable payload missing. Build first: release/scripts/build_exe.ps1"
 }
@@ -37,12 +37,12 @@ if (-not $wixPath) {
     throw "WiX CLI v7 or v6 not found. Install with: winget install --id WiXToolset.WiXCLI -e"
 }
 
-$outputRoot = Join-Path $repoRoot "release\PrimeRL_1.3_msi_win64"
+$outputRoot = Join-Path $repoRoot ("release\PrimeRL_{0}_msi_win64" -f $Version)
 $wixRoot = Join-Path $outputRoot "wix"
 $productWxs = Join-Path $wixRoot "Product.wxs"
 $licenseRtf = Join-Path $wixRoot "LICENSE.rtf"
 $cleanupVbs = Join-Path $wixRoot "CleanupPrompt.vbs"
-$msiPath = Join-Path $outputRoot "PrimeRL_1.3_win64.msi"
+$msiPath = Join-Path $outputRoot ("PrimeRL_{0}_win64.msi" -f $Version)
 
 if ($Clean -and (Test-Path $outputRoot)) {
     Remove-Item -Recurse -Force $outputRoot
@@ -108,11 +108,13 @@ $productXml = @'
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
     <Icon Id="PrimeRLIcon" SourceFile="$(var.SourceDir)\PrimeRL.exe" />
     <Property Id="ARPPRODUCTICON" Value="PrimeRLIcon" />
-    <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="INSTALLFOLDER" />
+    <Property Id="CREATE_DESKTOP_SHORTCUT" Value="1" />
+    <ui:WixUI Id="PrimeRL_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <Feature Id="MainApplication" Title="PrimeRL application files" Level="1">
       <ComponentGroupRef Id="MainApplicationComponents" />
     </Feature>
-    <Feature Id="DesktopShortcutFeature" Title="Create desktop shortcut" Level="1">
+    <Feature Id="DesktopShortcutFeature" Title="Create desktop shortcut" Level="0" Display="hidden">
+      <Condition Level="1">CREATE_DESKTOP_SHORTCUT</Condition>
       <ComponentRef Id="DesktopShortcutComponent" />
     </Feature>
     <Feature Id="UninstallCleanupSupport" Title="Uninstall cleanup support" Level="1" Display="hidden">
@@ -130,6 +132,73 @@ $productXml = @'
       <Custom Action="PromptCleanupUserData" Before="RemoveFiles" Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE' />
     </InstallExecuteSequence>
   </Package>
+
+  <Fragment>
+    <?foreach WIXUIARCH in X86;X64;A64 ?>
+    <UI Id="PrimeRL_InstallDir_$(WIXUIARCH)">
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="CheckTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="DesktopShortcutDlg" Order="4" Condition="NOT Installed" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="Installed" />
+    </UI>
+    <UIRef Id="PrimeRL_InstallDir" />
+    <?endforeach?>
+
+    <UI Id="file PrimeRL_InstallDir">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="LicenseAccepted = &quot;1&quot;" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="3" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SetTargetPath" Value="[_BrowseProperty]" Order="3" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="EndDialog" Value="Return" Order="4" />
+      <Publish Dialog="DesktopShortcutDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" />
+      <Publish Dialog="DesktopShortcutDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DesktopShortcutDlg" Order="1" Condition="NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+      <Property Id="ARPNOMODIFY" Value="1" />
+
+      <Dialog Id="DesktopShortcutDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="Title" Type="Text" X="20" Y="16" Width="330" Height="22" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Bigger}Desktop shortcut" />
+        <Control Id="Description" Type="Text" X="20" Y="52" Width="330" Height="34" Transparent="yes" NoPrefix="yes" Text="Choose whether setup should create a shortcut on your desktop." />
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="98" Width="300" Height="18" Property="CREATE_DESKTOP_SHORTCUT" CheckBoxValue="1" Text="Create a desktop shortcut" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="[ButtonText_Back]">
+          <Publish Event="NewDialog" Value="InstallDirDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[ButtonText_Next]">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="[ButtonText_Cancel]">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+  </Fragment>
 
   <Fragment>
     <StandardDirectory Id="ProgramFiles64Folder">
