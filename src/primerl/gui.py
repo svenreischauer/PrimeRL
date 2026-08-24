@@ -2039,7 +2039,7 @@ def launch_gui() -> int:
     }
 
     root = tb.Window(themename=LIGHT_THEME)
-    root.title("PrimeRL v1.3.3")
+    root.title("PrimeRL v1.3.4")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
     try:

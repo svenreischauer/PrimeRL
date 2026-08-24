@@ -9,8 +9,8 @@ Usage:
   ./release/scripts/build_deb.sh [options]
 
 Options:
-  --version <ver>      Package version (default: 1.3.3)
-  --app-dir <dir>      Path to built app folder (default: release/PrimeRL_1.3.3_app_linux_x86_64_nodb/dist/PrimeRL)
+  --version <ver>      Package version (default: 1.3.4)
+  --app-dir <dir>      Path to built app folder (default: release/PrimeRL_1.3.4_app_linux_x86_64_nodb/dist/PrimeRL)
   --clean              Remove previous deb build folder first
   -h, --help           Show this help
 
@@ -20,7 +20,7 @@ Notes:
 EOF
 }
 
-VERSION="1.3.3"
+VERSION="1.3.4"
 APP_DIR=""
 CLEAN=0
 
@@ -64,7 +64,7 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
 fi
 
 if [[ -z "$APP_DIR" ]]; then
-  APP_DIR="$REPO_ROOT/release/PrimeRL_1.3.3_app_linux_x86_64_nodb/dist/PrimeRL"
+  APP_DIR="$REPO_ROOT/release/PrimeRL_1.3.4_app_linux_x86_64_nodb/dist/PrimeRL"
 fi
 APP_DIR="$(cd -- "$APP_DIR" && pwd)"
 

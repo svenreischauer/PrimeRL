@@ -95,24 +95,24 @@ python -m unittest discover -s .\tests -v
 Build Windows artifacts locally:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_exe.ps1 -Version 1.3.3 -Clean
-powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_msi.ps1 -Version 1.3.3 -Clean
+powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_exe.ps1 -Version 1.3.4 -Clean
+powershell -NoProfile -ExecutionPolicy Bypass -File .\release\scripts\build_msi.ps1 -Version 1.3.4 -Clean
 ```
 
 Build macOS `.app` and signing artifacts:
 
 ```bash
-./release/scripts/build_app_macos.sh --version 1.3.3 --clean
-./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.3.3_app_macos_arm64_nodb/dist/PrimeRL.app
-./release/scripts/notarize_app_macos.sh --app release/PrimeRL_1.3.3_app_macos_arm64_nodb/dist/PrimeRL.app --keychain-profile PRIMERL_NOTARY
+./release/scripts/build_app_macos.sh --version 1.3.4 --clean
+./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.3.4_app_macos_arm64_nodb/dist/PrimeRL.app
+./release/scripts/notarize_app_macos.sh --app release/PrimeRL_1.3.4_app_macos_arm64_nodb/dist/PrimeRL.app --keychain-profile PRIMERL_NOTARY
 ```
 
 Build Linux app and `.deb`:
 
 ```bash
 ./release/scripts/prepare_linux_tools.sh
-./release/scripts/build_linux_app.sh --version 1.3.3 --clean
-./release/scripts/build_deb.sh --version 1.3.3 --clean --app-dir release/PrimeRL_1.3.3_app_linux_x86_64_nodb/dist/PrimeRL
+./release/scripts/build_linux_app.sh --version 1.3.4 --clean
+./release/scripts/build_deb.sh --version 1.3.4 --clean --app-dir release/PrimeRL_1.3.4_app_linux_x86_64_nodb/dist/PrimeRL
 ```
 
 See also:

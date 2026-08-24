@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.4 - 2026-08-24
+
+### Changed
+
+- Fetch Ensembl genomic and cDNA sequences concurrently while transcript-boundary/SNP mapping runs in parallel.
+
 ## 1.3.3 - 2026-08-24
 
 ### Fixed

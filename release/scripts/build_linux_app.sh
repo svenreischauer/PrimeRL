@@ -9,14 +9,14 @@ Usage:
   ./release/scripts/build_linux_app.sh [options]
 
 Options:
-  --version <ver>       Version tag used in output folder name (default: 1.3.3)
+  --version <ver>       Version tag used in output folder name (default: 1.3.4)
   --clean               Remove previous output folder before build
   --with-databases      Include bundled databases in app payload
   -h, --help            Show this help
 EOF
 }
 
-VERSION="1.3.3"
+VERSION="1.3.4"
 CLEAN=0
 WITH_DATABASES=0
 
