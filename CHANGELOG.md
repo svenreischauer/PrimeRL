@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3 - 2026-08-24
+
+### Fixed
+
+- Use the native MSI feature-selection page for the optional desktop shortcut.
+
 ## 1.3.2 - 2026-08-24
 
 ### Fixed
