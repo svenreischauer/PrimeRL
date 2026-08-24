@@ -9,39 +9,39 @@ This project can be packaged as a native macOS `.app` bundle with PyInstaller.
 
 ## Build `.app`
 ```bash
-./release/scripts/build_app_macos.sh --version 1.3 --clean
+./release/scripts/build_app_macos.sh --version 1.3.1 --clean
 ```
 
 Output (no databases):
-- `release/PrimeRL_1.3_app_macos_arm64_nodb/dist/PrimeRL.app`
+- `release/PrimeRL_1.3.1_app_macos_arm64_nodb/dist/PrimeRL.app`
 
 To include bundled databases:
 ```bash
-./release/scripts/build_app_macos.sh --version 1.3 --clean --with-databases
+./release/scripts/build_app_macos.sh --version 1.3.1 --clean --with-databases
 ```
 
 ## Sign `.app`
 Ad-hoc signing (local testing):
 ```bash
-./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.3_app_macos_arm64_nodb/dist/PrimeRL.app
+./release/scripts/sign_app_macos.sh --app release/PrimeRL_1.3.1_app_macos_arm64_nodb/dist/PrimeRL.app
 ```
 
 Developer ID signing (distribution):
 ```bash
 ./release/scripts/sign_app_macos.sh \
-  --app release/PrimeRL_1.3_app_macos_arm64_nodb/dist/PrimeRL.app \
+  --app release/PrimeRL_1.3.1_app_macos_arm64_nodb/dist/PrimeRL.app \
   --identity "Developer ID Application: Your Name (TEAMID)"
 ```
 
 You can also build and sign in one call:
 ```bash
-./release/scripts/build_app_macos.sh --version 1.3 --clean --sign
+./release/scripts/build_app_macos.sh --version 1.3.1 --clean --sign
 ```
 
 For distributable signing in one call:
 ```bash
 ./release/scripts/build_app_macos.sh \
-  --version 1.3 --clean --sign \
+  --version 1.3.1 --clean --sign \
   --sign-identity "Developer ID Application: Your Name (TEAMID)"
 ```
 
@@ -57,14 +57,14 @@ xcrun notarytool store-credentials "PRIMERL_NOTARY" \
 Submit, wait, and staple:
 ```bash
 ./release/scripts/notarize_app_macos.sh \
-  --app release/PrimeRL_1.3_app_macos_arm64_nodb/dist/PrimeRL.app \
+  --app release/PrimeRL_1.3.1_app_macos_arm64_nodb/dist/PrimeRL.app \
   --keychain-profile PRIMERL_NOTARY
 ```
 
 Fallback auth mode (without keychain profile):
 ```bash
 ./release/scripts/notarize_app_macos.sh \
-  --app release/PrimeRL_1.3_app_macos_arm64_nodb/dist/PrimeRL.app \
+  --app release/PrimeRL_1.3.1_app_macos_arm64_nodb/dist/PrimeRL.app \
   --apple-id "you@example.com" \
   --team-id "TEAMID" \
   --password "<app-specific-password>"
