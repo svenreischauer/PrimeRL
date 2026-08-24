@@ -85,11 +85,11 @@ jobs:
             throw "PyInstaller build failed."
           }
 
-      - name: Install WiX CLI
+      - name: Install WiX CLI v6
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          dotnet tool install --global wix --version 7.0.0
+          dotnet tool install --global wix --version 6.0.2
           $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
           $toolPath | Add-Content -LiteralPath $env:GITHUB_PATH
           $env:PATH = "$toolPath;$env:PATH"
