@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 - 2026-08-24
+
+### Fixed
+
+- Corrected WiX 6 installer schema for the desktop-shortcut choice page.
+
 ## 1.3.1 - 2026-08-24
 
 ### Fixed

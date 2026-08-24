@@ -14,8 +14,8 @@ jobs:
     name: Build and publish Windows release packages
     runs-on: windows-latest
     env:
-      VERSION: "1.3.1"
-      RELEASE_TAG: "v1.3.1"
+      VERSION: "1.3.2"
+      RELEASE_TAG: "v1.3.2"
       TOOL_PAYLOAD_RELEASE_TAG: "v1.3.0"
       TOOL_PAYLOAD_SHA256: dc31daca41a0981afd890259ca3a479a5da6207b81059109327e17aedcf399cb
       GH_TOKEN: ${{ github.token }}
@@ -24,7 +24,7 @@ jobs:
       - name: Check out released source
         uses: actions/checkout@v4
         with:
-          ref: v1.3.1
+          ref: v1.3.2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -145,14 +145,14 @@ jobs:
       - name: Retain workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PrimeRL-1.3.1-portable-win64-nodb
+          name: PrimeRL-1.3.2-portable-win64-nodb
           path: ${{ steps.archive.outputs.zip }}
           if-no-files-found: error
 
       - name: Retain MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PrimeRL-1.3.1-msi-win64
+          name: PrimeRL-1.3.2-msi-win64
           path: ${{ steps.msi.outputs.msi }}
           if-no-files-found: error
 
