@@ -70,10 +70,6 @@ jobs:
           New-Item -ItemType Directory -Path $assetsApp -Force | Out-Null
           Copy-Item -LiteralPath "PrimeRL" -Destination (Join-Path $assetsApp "PrimeRL") -Recurse -Force
           Copy-Item -LiteralPath "third_party" -Destination (Join-Path $assetsApp "third_party") -Recurse -Force
-          $databases = Join-Path $assetsApp "PrimeRL\databases"
-          if (Test-Path -LiteralPath $databases) {
-            Remove-Item -LiteralPath $databases -Recurse -Force
-          }
 
       - name: Install build dependencies
         shell: pwsh
