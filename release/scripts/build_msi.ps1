@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.3.1",
+    [string]$Version = "1.3.2",
     [string]$Manufacturer = "Reischauer Lab",
     [switch]$BuildExe,
     [switch]$Clean
@@ -114,7 +114,7 @@ $productXml = @'
       <ComponentGroupRef Id="MainApplicationComponents" />
     </Feature>
     <Feature Id="DesktopShortcutFeature" Title="Create desktop shortcut" Level="0" Display="hidden">
-      <Condition Level="1">CREATE_DESKTOP_SHORTCUT</Condition>
+      <Level Value="1" Condition="CREATE_DESKTOP_SHORTCUT" />
       <ComponentRef Id="DesktopShortcutComponent" />
     </Feature>
     <Feature Id="UninstallCleanupSupport" Title="Uninstall cleanup support" Level="1" Display="hidden">
@@ -187,13 +187,13 @@ $productXml = @'
         <Control Id="Description" Type="Text" X="20" Y="52" Width="330" Height="34" Transparent="yes" NoPrefix="yes" Text="Choose whether setup should create a shortcut on your desktop." />
         <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="98" Width="300" Height="18" Property="CREATE_DESKTOP_SHORTCUT" CheckBoxValue="1" Text="Create a desktop shortcut" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="[ButtonText_Back]">
-          <Publish Event="NewDialog" Value="InstallDirDlg">1</Publish>
+          <Publish Event="NewDialog" Value="InstallDirDlg" Condition="1" />
         </Control>
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[ButtonText_Next]">
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="1" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="[ButtonText_Cancel]">
-          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+          <Publish Event="SpawnDialog" Value="CancelDlg" Condition="1" />
         </Control>
       </Dialog>
     </UI>
