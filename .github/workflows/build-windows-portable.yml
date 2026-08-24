@@ -1,4 +1,4 @@
-name: Build Windows portable bundle
+name: Build Windows release packages
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    name: Build and publish Windows portable bundle
+    name: Build and publish Windows release packages
     runs-on: windows-latest
     env:
       VERSION: "1.3"
@@ -85,6 +85,41 @@ jobs:
             throw "PyInstaller build failed."
           }
 
+      - name: Install WiX CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          dotnet tool install --global wix --version 7.0.0
+          $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
+          $toolPath | Add-Content -LiteralPath $env:GITHUB_PATH
+          $env:PATH = "$toolPath;$env:PATH"
+          & wix.exe extension add -g WixToolset.UI.wixext
+          if ($LASTEXITCODE -ne 0) {
+            throw "WiX UI extension installation failed."
+          }
+
+      - name: Build MSI installer
+        id: msi
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "$($env:VERSION).0"
+          & .\release\scripts\build_msi.ps1 -Version $version -Clean
+          $msi = "release\PrimeRL_$env:VERSION`_msi_win64\PrimeRL_$env:VERSION`_win64.msi"
+          if (-not (Test-Path -LiteralPath $msi)) {
+            throw "MSI installer was not produced."
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $msi).Hash.ToLowerInvariant()
+          "msi=$msi" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          @"
+          ## MSI installer
+
+          - File: ``$(Split-Path -Leaf $msi)``
+          - SHA256: ``$hash``
+          - Database profile: no database included
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
       - name: Archive portable application
         id: archive
         shell: pwsh
@@ -116,6 +151,13 @@ jobs:
           path: ${{ steps.archive.outputs.zip }}
           if-no-files-found: error
 
-      - name: Publish portable ZIP to GitHub Release
+      - name: Retain MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimeRL-1.3-msi-win64
+          path: ${{ steps.msi.outputs.msi }}
+          if-no-files-found: error
+
+      - name: Publish Windows release assets to GitHub Release
         shell: pwsh
-        run: gh release upload $env:RELEASE_TAG "${{ steps.archive.outputs.zip }}" --clobber
+        run: gh release upload $env:RELEASE_TAG "${{ steps.archive.outputs.zip }}" "${{ steps.msi.outputs.msi }}" --clobber
