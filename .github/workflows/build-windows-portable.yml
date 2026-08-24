@@ -93,7 +93,7 @@ jobs:
           $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
           $toolPath | Add-Content -LiteralPath $env:GITHUB_PATH
           $env:PATH = "$toolPath;$env:PATH"
-          & wix.exe extension add -g WixToolset.UI.wixext
+          & wix.exe extension add -g WixToolset.UI.wixext/6.0.2
           if ($LASTEXITCODE -ne 0) {
             throw "WiX UI extension installation failed."
           }
