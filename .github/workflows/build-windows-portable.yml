@@ -1,6 +1,11 @@
 name: Build Windows portable bundle
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-windows-portable.yml"
   workflow_dispatch:
     inputs:
       version:
